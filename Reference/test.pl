@@ -53,14 +53,16 @@ else
 	$file=$ARGV[0];
 }
 
+my $origsize=-s $file;
+
 my $gzipsize=test_gzip($file);
-print "gzip: $gzipsize\n";
+printf "gzip: $gzipsize, %.2f%%, %.2f \n",100*$gzipsize/$origsize,8*$gzipsize/$origsize;
 
 my $bzip2size=test_bzip2($file);
-print "bzip2: $bzip2size\n";
+printf "bzip2: $bzip2size, %.2f%%, %.2f\n",100*$bzip2size/$origsize,8*$bzip2size/$origsize;
 
 my $lzmasize=test_lzma($file);
-print "LZMA: $lzmasize\n";
+printf "lzma: $lzmasize, %.2f%%, %.2f\n",100*$lzmasize/$origsize,8*$lzmasize/$origsize;
 
 my $minaval=1;
 my $minsize=10000000000;
@@ -123,9 +125,9 @@ for(1..8)
 }
 
 print "-----\n";
-print "$minaval $minbval $mincval $mindval $mineval $minfval: $minsize\n";
+printf "$minaval $minbval $mincval $mindval $mineval $minfval: $minsize, %.2f%%, %.2f\n",100*$minsize/$origsize,8*$minsize/$origsize;
 #test_wilt($exe,$file,$minaval,$minbval,$mincval,$mindval,$mineval,$minfval);
-printf "gzip: $gzipsize (comparison: %.2f%%)\n",100*$minsize/$gzipsize;
-printf "bzip2: $bzip2size (comparison: %.2f%%)\n",100*$minsize/$bzip2size;
-printf "lzma: $lzmasize (comparison: %.2f%%)\n",100*$minsize/$lzmasize;
+printf "gzip: $gzipsize, %.2f%%, %.2f (comparison: %.2f%%)\n",100*$gzipsize/$origsize,8*$gzipsize/$origsize,100*$minsize/$gzipsize;
+printf "bzip2: $bzip2size, %.2f%%, %.2f (comparison: %.2f%%)\n",100*$bzip2size/$origsize,8*$bzip2size/$origsize,100*$minsize/$bzip2size;
+printf "lzma: $lzmasize, %.2f%%, %.2f (comparison: %.2f%%)\n",100*$lzmasize/$origsize,8*$lzmasize/$origsize,100*$minsize/$lzmasize;
 

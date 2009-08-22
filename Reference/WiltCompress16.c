@@ -7,14 +7,6 @@
 
 
 
-static inline uint16_t GetUInt16LE(uint8_t *ptr)
-{
-	return ptr[0]+(ptr[1]<<8);
-}
-
-
-
-
 typedef struct RangeEncoder
 {
 	uint32_t range;
@@ -110,6 +102,11 @@ typedef struct DictionaryLookup
 	uint32_t offsets[65536];
 } DictionaryLookup;
 
+static inline uint16_t GetUInt16LE(uint8_t *ptr)
+{
+	return ptr[0]+(ptr[1]<<8);
+}
+
 static void InitDictionaryLookup(DictionaryLookup *self,uint8_t *buf,uint32_t size)
 {
 	self->buf=buf;
@@ -117,7 +114,7 @@ static void InitDictionaryLookup(DictionaryLookup *self,uint8_t *buf,uint32_t si
 	self->entries=malloc((size/2)*sizeof(DictionaryEntry));
 	memset(self->offsets,0xff,sizeof(self->offsets));
 
-	for(int i=size/2-1;i>=0;i--)
+	for(int i=size/2-2;i>=0;i--)
 	{
 		uint16_t val=GetUInt16LE(&buf[i*2]);
 

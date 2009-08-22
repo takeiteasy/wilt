@@ -99,8 +99,13 @@ typedef struct DictionaryLookup
 	uint8_t *buf;
 	uint32_t size;
 	DictionaryEntry *entries;
-	uint32_t offsets[256];
+	uint32_t offsets[65536];
 } DictionaryLookup;
+
+static inline uint16_t GetUInt16LE(uint8_t *ptr)
+{
+	return ptr[0]+(ptr[1]<<8);
+}
 
 static void InitDictionaryLookup(DictionaryLookup *self,uint8_t *buf,uint32_t size)
 {
@@ -109,9 +114,9 @@ static void InitDictionaryLookup(DictionaryLookup *self,uint8_t *buf,uint32_t si
 	self->entries=malloc(size*sizeof(DictionaryEntry));
 	memset(self->offsets,0xff,sizeof(self->offsets));
 
-	for(int i=size-1;i>=0;i--)
+	for(int i=size-3;i>=0;i--)
 	{
-		uint16_t val=buf[i];
+		uint16_t val=GetUInt16LE(&buf[i]);
 
 		DictionaryEntry *entry=&self->entries[i];
 		entry->dataoffset=i;
@@ -124,13 +129,13 @@ static bool FindDictionaryMatch(DictionaryLookup *self,int start,int *length,int
 {
 	int maxlength=0,maxpos=-1;
 
-	uint8_t first=self->buf[start];
+	uint16_t first=GetUInt16LE(&self->buf[start]);
 	uint32_t entryoffset=self->offsets[first];
 
 	while(entryoffset!=0xffffffff && self->entries[entryoffset].dataoffset<start)
 	{
 		int pos=self->entries[entryoffset].dataoffset;
-		int matchlen=1;
+		int matchlen=2;
 		while(pos+matchlen+2<=self->size && start+matchlen+1<=self->size
 		&& self->buf[pos+matchlen]==self->buf[start+matchlen]) matchlen+=1;
 
