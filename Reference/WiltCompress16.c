@@ -162,7 +162,7 @@ static bool FindDictionaryMatch(DictionaryLookup *self,int start,int *length,int
 
 
 void CompressData(FILE *fh,uint8_t *buf,uint32_t size,
-int typeshift,int litshift,int lengthshift1,int lengthshift2,int offsshift1,int offsshift2)
+int typeshift,int literalshift,int lengthshift1,int lengthshift2,int offsetshift1,int offsetshift2)
 {
 	RangeEncoder comp;
 	InitRangeEncoder(&comp,fh);
@@ -173,9 +173,9 @@ int typeshift,int litshift,int lengthshift1,int lengthshift2,int offsshift1,int 
 	uint16_t typeweight=0x800;
 
 	uint16_t lengthweights1[32],lengthweights2[32];
-	uint16_t offsweights1[32],offsweights2[32];
+	uint16_t offsetweights1[32],offsetweights2[32];
 	for(int i=0;i<32;i++)
-	lengthweights1[i]=lengthweights2[i]=offsweights1[i]=offsweights2[i]=0x800;
+	lengthweights1[i]=lengthweights2[i]=offsetweights1[i]=offsetweights2[i]=0x800;
 
 	uint16_t literalbitweights[16][16];
 	for(int i=0;i<16;i++)
@@ -191,7 +191,7 @@ int typeshift,int litshift,int lengthshift1,int lengthshift2,int offsshift1,int 
 			WriteBitAndUpdateWeight(&comp,1,&typeweight,typeshift);
 
 			WriteUniversalCode(&comp,length/2-2,lengthweights1,lengthshift1,lengthweights2,lengthshift2);
-			WriteUniversalCode(&comp,(pos-offs)/2-1,offsweights1,offsshift1,offsweights2,offsshift2);
+			WriteUniversalCode(&comp,(pos-offs)/2-1,offsetweights1,offsetshift1,offsetweights2,offsetshift2);
 
 			pos+=length;
 		}
@@ -203,7 +203,7 @@ int typeshift,int litshift,int lengthshift1,int lengthshift2,int offsshift1,int 
 
 			for(int i=15;i>=0;i--)
 			{
-				WriteBitAndUpdateWeight(&comp,(val>>i)&1,&literalbitweights[i][(val>>(i+1))&15],litshift);
+				WriteBitAndUpdateWeight(&comp,(val>>i)&1,&literalbitweights[i][(val>>(i+1))&15],literalshift);
 			}
 
 			pos+=2;
@@ -244,15 +244,15 @@ int main(int argc,char **argv)
 	uint32_t size;
 	uint8_t *file=AllocAndReadFile(stdin,&size);
 
-	int typeshift=4,litshift=2,lengthshift1=4,lengthshift2=4,offsshift1=4,offsshift2=4;
+	int typeshift=4,literalshift=2,lengthshift1=4,lengthshift2=4,offsetshift1=4,offsetshift2=4;
 	if(argc==7)
 	{
 		typeshift=atoi(argv[1]);
-		litshift=atoi(argv[2]);
+		literalshift=atoi(argv[2]);
 		lengthshift1=atoi(argv[3]);
 		lengthshift2=atoi(argv[4]);
-		offsshift1=atoi(argv[5]);
-		offsshift2=atoi(argv[6]);
+		offsetshift1=atoi(argv[5]);
+		offsetshift2=atoi(argv[6]);
 	}
 
 	fputc(size&0xff,stdout);
@@ -260,9 +260,9 @@ int main(int argc,char **argv)
 	fputc((size>>16)&0xff,stdout);
 	fputc((size>>24)&0xff,stdout);
 
-	fputc((offsshift1<<4)|offsshift2,stdout);
+	fputc((offsetshift1<<4)|offsetshift2,stdout);
 	fputc((lengthshift1<<4)|lengthshift2,stdout);
-	fputc((typeshift<<4)|litshift,stdout);
+	fputc((typeshift<<4)|literalshift,stdout);
 
-	CompressData(stdout,file,size,typeshift,litshift,lengthshift1,lengthshift2,offsshift1,offsshift2);
+	CompressData(stdout,file,size,typeshift,literalshift,lengthshift1,lengthshift2,offsetshift1,offsetshift2);
 }

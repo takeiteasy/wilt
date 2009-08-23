@@ -76,7 +76,7 @@ static void CopyMemory(uint8_t *dest,uint8_t *src,int length)
 }
 
 void DecompressData(FILE *fh,uint8_t *buf,uint32_t size,
-int typeshift,int litshift,int lengthshift1,int lengthshift2,int offsshift1,int offsshift2)
+int typeshift,int literalshift,int lengthshift1,int lengthshift2,int offsetshift1,int offsetshift2)
 {
 	RangeDecoder dec;
 	InitRangeDecoder(&dec,fh);
@@ -84,9 +84,9 @@ int typeshift,int litshift,int lengthshift1,int lengthshift2,int offsshift1,int 
 	uint16_t typeweight=0x800;
 
 	uint16_t lengthweights1[32],lengthweights2[32];
-	uint16_t offsweights1[32],offsweights2[32];
+	uint16_t offsetweights1[32],offsetweights2[32];
 	for(int i=0;i<32;i++)
-	lengthweights1[i]=lengthweights2[i]=offsweights1[i]=offsweights2[i]=0x800;
+	lengthweights1[i]=lengthweights2[i]=offsetweights1[i]=offsetweights2[i]=0x800;
 
 	uint16_t literalbitweights[16][16];
 	for(int i=0;i<16;i++)
@@ -101,7 +101,7 @@ int typeshift,int litshift,int lengthshift1,int lengthshift2,int offsshift1,int 
 		if(ReadBitAndUpdateWeight(&dec,&typeweight,typeshift)==1)
 		{
 			int length=(ReadUniversalCode(&dec,lengthweights1,lengthshift1,lengthweights2,lengthshift2)+2)*2;
-			int offs=(ReadUniversalCode(&dec,offsweights1,offsshift1,offsweights2,offsshift2)+1)*2;
+			int offs=(ReadUniversalCode(&dec,offsetweights1,offsetshift1,offsetweights2,offsetshift2)+1)*2;
 
 			CopyMemory(&buf[pos],&buf[pos-offs],length);
 
@@ -113,7 +113,7 @@ int typeshift,int litshift,int lengthshift1,int lengthshift2,int offsshift1,int 
 
 			for(int i=0;i<16;i++)
 			{
-				int bit=ReadBitAndUpdateWeight(&dec,&literalbitweights[i][val&15],litshift);
+				int bit=ReadBitAndUpdateWeight(&dec,&literalbitweights[i][val&15],literalshift);
 				val=(val<<1)|bit;
 			}
 			buf[pos]=val&0xff;

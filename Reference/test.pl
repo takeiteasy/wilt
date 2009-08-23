@@ -38,7 +38,7 @@ sub test_wilt($$@)
 	`$exe <'$filename' $a $b $c $d $e $f >'$tmpname'`;
 	my $size=-s $tmpname;
 	unlink $tmpname;
-	return $size-7;
+	return $size;
 }
 
 my ($exe,$file);
