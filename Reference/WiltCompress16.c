@@ -60,7 +60,7 @@ static void WriteBitAndUpdateWeight(RangeEncoder *self,int bit,uint16_t *weight,
 		*weight-=*weight>>shift;
 	}
 
-	if(self->range<0x1000000)
+	while(self->range<0x1000000)
 	{
 		self->range<<=8;
 		ShiftOutputFromRangeEncoder(self);

@@ -23,7 +23,7 @@ static void InitRangeDecoder(RangeDecoder *self,FILE *fh)
 
 static void NormalizeRangeDecoder(RangeDecoder *self)
 {
-	if(self->range<0x1000000)
+	while(self->range<0x1000000)
 	{
 		self->code=(self->code<<8)|fgetc(self->fh);
 		self->range<<=8;
