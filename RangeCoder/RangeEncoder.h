@@ -7,10 +7,9 @@
 
 typedef struct RangeEncoder
 {
-	uint32_t range;
-	uint64_t low;
-	uint8_t cache;
-	uint32_t cachesize;
+	uint32_t range,low;
+	int numextrabytes,nextbyte;
+	bool overflow,firstbyte;
 
 	FILE *fh;
 } RangeEncoder;

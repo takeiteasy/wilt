@@ -9,8 +9,9 @@ void InitRangeEncoder(RangeEncoder *self,FILE *fh)
 {
 	self->range=0xffffffff;
 	self->low=0;
-	self->cache=0xff;
-	self->cachesize=0;
+	self->numextrabytes=0;
+	self->nextbyte=-1;
+	self->overflow=false;
 
 	self->fh=fh;
 }
@@ -26,7 +27,10 @@ void WriteBit(RangeEncoder *self,int bit,int weight)
 	else
 	{
 		self->range-=threshold;
+
+		uint32_t oldlow=self->low;
 		self->low+=threshold;
+		self->overflow|=self->low<oldlow;
 	}
 
 	NormalizeRangeEncoder(self);
@@ -51,18 +55,25 @@ static void NormalizeRangeEncoder(RangeEncoder *self)
 
 static void ShiftOutputFromRangeEncoder(RangeEncoder *self)
 {
-	if((self->low&0xffffffff)<0xff000000||(self->low>>32)!=0)
+	int next=(self->low>>24)&0xff;
+
+	if(next==0xff&&self->overflow==0)
 	{
-		uint8_t temp=self->cache;
-		for(int i=0;i<self->cachesize;i++)
-		{
-			fputc((temp+(self->low>>32))&0xff,self->fh);
-			temp=0xff;
-		}
-		self->cachesize=0;
-		self->cache=(self->low>>24)&0xff;
+		self->numextrabytes++;
 	}
-	self->cachesize++;
+	else
+	{
+		if(self->nextbyte>=0)
+		putc((self->nextbyte+self->overflow)&0xff,self->fh);
+
+		for(int i=0;i<self->numextrabytes;i++)
+		fputc((0xff+self->overflow)&0xff,self->fh);
+
+		self->numextrabytes=0;
+		self->nextbyte=next;
+		self->overflow=false;
+	}
+
 	self->low=(self->low<<8)&0xffffffff;
 }
 
