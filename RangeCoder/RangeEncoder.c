@@ -2,8 +2,9 @@
 
 #include <math.h>
 
-static void NormalizeRangeEncoder(RangeEncoder *self);
-static void ShiftOutputFromRangeEncoder(RangeEncoder *self);
+static void Normalize(RangeEncoder *self);
+static void ShiftOutput(RangeEncoder *self);
+static void WriteWrappedDigit(RangeEncoder *self,int output);
 
 void InitRangeEncoder(RangeEncoder *self,FILE *fh)
 {
@@ -33,27 +34,24 @@ void WriteBit(RangeEncoder *self,int bit,int weight)
 		self->overflow|=self->low<oldlow;
 	}
 
-	NormalizeRangeEncoder(self);
+	Normalize(self);
 }
 
 void FinishRangeEncoder(RangeEncoder *self)
 {
-	for(int i=0;i<5;i++)
-	{
-		ShiftOutputFromRangeEncoder(self);
-	}
+	for(int i=0;i<5;i++) ShiftOutput(self);
 }
 
-static void NormalizeRangeEncoder(RangeEncoder *self)
+static void Normalize(RangeEncoder *self)
 {
 	while(self->range<0x1000000)
 	{
 		self->range<<=8;
-		ShiftOutputFromRangeEncoder(self);
+		ShiftOutput(self);
 	}
 }
 
-static void ShiftOutputFromRangeEncoder(RangeEncoder *self)
+static void ShiftOutput(RangeEncoder *self)
 {
 	int next=(self->low>>24)&0xff;
 
@@ -64,17 +62,22 @@ static void ShiftOutputFromRangeEncoder(RangeEncoder *self)
 	else
 	{
 		if(self->nextbyte>=0)
-		putc((self->nextbyte+self->overflow)&0xff,self->fh);
+		WriteWrappedDigit(self,self->nextbyte+self->overflow);
 
 		for(int i=0;i<self->numextrabytes;i++)
-		fputc((0xff+self->overflow)&0xff,self->fh);
+		WriteWrappedDigit(self,0xff+self->overflow);
 
 		self->numextrabytes=0;
 		self->nextbyte=next;
 		self->overflow=false;
 	}
 
-	self->low=(self->low<<8)&0xffffffff;
+	self->low=self->low<<8;
+}
+
+static void WriteWrappedDigit(RangeEncoder *self,int output)
+{
+	fputc(output&0xff,self->fh);
 }
 
 

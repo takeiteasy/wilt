@@ -1,6 +1,6 @@
 #include "RangeDecoder.h"
 
-static void NormalizeRangeDecoder(RangeDecoder *self);
+static void Normalize(RangeDecoder *self);
 
 void InitRangeDecoder(RangeDecoder *self,FILE *fh)
 {
@@ -13,7 +13,7 @@ void InitRangeDecoder(RangeDecoder *self,FILE *fh)
 
 int ReadBit(RangeDecoder *self,int weight)
 {
-	NormalizeRangeDecoder(self);
+	Normalize(self);
 
 	uint32_t threshold=(self->range>>12)*weight;
 
@@ -30,7 +30,7 @@ int ReadBit(RangeDecoder *self,int weight)
 	}
 }
 
-static void NormalizeRangeDecoder(RangeDecoder *self)
+static void Normalize(RangeDecoder *self)
 {
 	while(self->range<0x1000000)
 	{

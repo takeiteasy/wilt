@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-static void NormalizeRadixRangeDecoder(RadixRangeDecoder *self);
+static void Normalize(RadixRangeDecoder *self);
 static int ReadDigit(RadixRangeDecoder *self);
 
 void InitRadixRangeDecoder(RadixRangeDecoder *self,int radix,uint8_t *alphabet,FILE *fh)
@@ -46,7 +46,7 @@ void InitRadixRangeDecoder(RadixRangeDecoder *self,int radix,uint8_t *alphabet,F
 
 int ReadRadixBit(RadixRangeDecoder *self,int weight)
 {
-	NormalizeRadixRangeDecoder(self);
+	Normalize(self);
 
 	uint32_t threshold=(self->range>>12)*weight;
 
@@ -63,11 +63,11 @@ int ReadRadixBit(RadixRangeDecoder *self,int weight)
 	}
 }
 
-static void NormalizeRadixRangeDecoder(RadixRangeDecoder *self)
+static void Normalize(RadixRangeDecoder *self)
 {
 	while(self->range<self->bottom)
 	{
-		self->code=(self->code%self->bottom)*self->radix+ReadDigit(self);
+		self->code=self->code*self->radix+ReadDigit(self);
 		self->range=self->range*self->radix;
 	}
 }

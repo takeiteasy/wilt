@@ -6,8 +6,8 @@ uint8_t URLSafeAlphabet[71]="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNO
 uint8_t Base64Alphabet[64]="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_";
 uint8_t HexAlphabet[16]="0123456789abcdef";
 
-static void NormalizeRadixRangeEncoder(RadixRangeEncoder *self);
-static void ShiftOutputFromRadixRangeEncoder(RadixRangeEncoder *self);
+static void Normalize(RadixRangeEncoder *self);
+static void ShiftOutput(RadixRangeEncoder *self);
 static void WriteWrappedDigit(RadixRangeEncoder *self,int output);
 
 void InitRadixRangeEncoder(RadixRangeEncoder *self,int radix,uint8_t *alphabet,FILE *fh)
@@ -70,29 +70,25 @@ void WriteRadixBit(RadixRangeEncoder *self,int bit,int weight)
 		}
 	}
 
-	NormalizeRadixRangeEncoder(self);
+	Normalize(self);
 }
 
 void FinishRadixRangeEncoder(RadixRangeEncoder *self)
 {
-	// TODO: figure out if we need to force output?
-	ShiftOutputFromRadixRangeEncoder(self);
-	for(uint32_t n=1;n!=self->top;n*=self->radix)
-	{
-		ShiftOutputFromRadixRangeEncoder(self);
-	}
+	for(uint32_t n=1;n!=self->top;n*=self->radix) ShiftOutput(self);
+	ShiftOutput(self);
 }
 
-static void NormalizeRadixRangeEncoder(RadixRangeEncoder *self)
+static void Normalize(RadixRangeEncoder *self)
 {
 	while(self->range<self->bottom)
 	{
 		self->range*=self->radix;
-		ShiftOutputFromRadixRangeEncoder(self);
+		ShiftOutput(self);
 	}
 }
 
-static void ShiftOutputFromRadixRangeEncoder(RadixRangeEncoder *self)
+static void ShiftOutput(RadixRangeEncoder *self)
 {
 	int next=self->low/self->bottom;
 
