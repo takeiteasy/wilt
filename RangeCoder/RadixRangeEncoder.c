@@ -1,4 +1,5 @@
 #include "RadixRangeEncoder.h"
+#include "EncodeImplementations.h"
 
 #include <string.h>
 
@@ -49,37 +50,13 @@ void InitRadixRangeEncoder(RadixRangeEncoder *self,int radix,uint8_t *alphabet,F
 	else for(int i=0;i<radix;i++) self->alphabet[i]=i;
 }
 
-void WriteRadixBit(RadixRangeEncoder *self,int bit,int weight)
-{
-	uint32_t threshold=(self->range>>12)*weight;
-
-	if(bit==0)
-	{
-		self->range=threshold;
-	}
-	else
-	{
-		self->range-=threshold;
-
-		uint32_t oldlow=self->low;
-		self->low+=threshold;
-		if((self->top&&self->low>=self->top)||self->low<oldlow)
-		{
-			self->low-=self->top;
-			self->overflow=1;
-		}
-	}
-
-	Normalize(self);
-}
-
 void FinishRadixRangeEncoder(RadixRangeEncoder *self)
 {
 	for(uint32_t n=1;n!=self->top;n*=self->radix) ShiftOutput(self);
 	ShiftOutput(self);
 }
 
-static void Normalize(RadixRangeEncoder *self)
+void NormalizeRadixRangeEncoder(RadixRangeEncoder *self)
 {
 	while(self->range<self->bottom)
 	{
@@ -116,3 +93,22 @@ static void WriteWrappedDigit(RadixRangeEncoder *self,int output)
 {
 	fputc(self->alphabet[output%self->radix],self->fh);
 }
+
+
+
+void WriteBitR(RadixRangeEncoder *self,int bit,int weight)
+{
+	uint32_t range,low;
+	GetRadixRangeEncoderState(self,&range,&low);
+	EncodeBit(&range,&low,bit,weight);
+	UpdateRadixRangeEncoderState(self,range,low);
+}
+
+void WriteDynamicBitE(RadixRangeEncoder *self,int bit,int *weight,int shift)
+{
+	uint32_t range,low;
+	GetRadixRangeEncoderState(self,&range,&low);
+	EncodeDynamicBit(&range,&low,bit,weight,shift);
+	UpdateRadixRangeEncoderState(self,range,low);
+}
+

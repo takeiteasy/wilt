@@ -1,8 +1,8 @@
 #include "RadixRangeDecoder.h"
+#include "DecodeImplementations.h"
 
 #include <string.h>
 
-static void Normalize(RadixRangeDecoder *self);
 static int ReadDigit(RadixRangeDecoder *self);
 
 void InitRadixRangeDecoder(RadixRangeDecoder *self,int radix,uint8_t *alphabet,FILE *fh)
@@ -44,26 +44,7 @@ void InitRadixRangeDecoder(RadixRangeDecoder *self,int radix,uint8_t *alphabet,F
 	self->code=self->code*radix+ReadDigit(self);
 }
 
-int ReadRadixBit(RadixRangeDecoder *self,int weight)
-{
-	Normalize(self);
-
-	uint32_t threshold=(self->range>>12)*weight;
-
-	if(self->code<threshold)
-	{
-		self->range=threshold;
-		return 0;
-	}
-	else
-	{
-		self->range-=threshold;
-		self->code-=threshold;
-		return 1;
-	}
-}
-
-static void Normalize(RadixRangeDecoder *self)
+void NormalizeRadixRangeDecoder(RadixRangeDecoder *self)
 {
 	while(self->range<self->bottom)
 	{
@@ -77,3 +58,22 @@ static int ReadDigit(RadixRangeDecoder *self)
 	return self->reversealphabet[fgetc(self->fh)];
 }
 
+
+
+int ReadBitR(RadixRangeDecoder *self,int weight)
+{
+	uint32_t range,code;
+	GetRadixRangeDecoderState(self,&range,&code);
+	int bit=DecodeBit(&range,&code,weight);
+	UpdateRadixRangeDecoderState(self,range,code);
+	return bit;
+}
+
+int ReadDynamicBitR(RadixRangeDecoder *self,int *weight,int shift)
+{
+	uint32_t range,code;
+	GetRadixRangeDecoderState(self,&range,&code);
+	int bit=DecodeDynamicBit(&range,&code,weight,shift);
+	UpdateRadixRangeDecoderState(self,range,code);
+	return bit;
+}

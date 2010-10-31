@@ -15,8 +15,28 @@ typedef struct RangeEncoder
 } RangeEncoder;
 
 void InitRangeEncoder(RangeEncoder *self,FILE *fh);
-void WriteBit(RangeEncoder *self,int bit,int weight);
 void FinishRangeEncoder(RangeEncoder *self);
+void NormalizeRangeEncoder(RangeEncoder *self);
+
+static inline int GetRangeEncoderState(RangeEncoder *self,uint32_t *range,uint32_t *low)
+{
+	*range=self->range;
+	*low=self->low;
+}
+
+static inline void UpdateRangeEncoderState(RangeEncoder *self,uint32_t newrange,uint32_t newlow)
+{
+	self->overflow|=newlow<self->low;
+	self->range=newrange;
+	self->low=newlow;
+
+	NormalizeRangeEncoder(self);
+}
+
+void WriteBit(RangeEncoder *self,int bit,int weight);
+void WriteDynamicBit(RangeEncoder *self,int bit,int *weight,int shift);
+void WriteUniversalCode(RangeEncoder *self,uint32_t value,
+int *weights1,int shift1,int *weights2,int shift2);
 
 double CalculateCostOfBit(int bit,int weight);
 

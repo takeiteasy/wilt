@@ -1,8 +1,8 @@
 #include "RangeEncoder.h"
+#include "EncodeImplementations.h"
 
 #include <math.h>
 
-static void Normalize(RangeEncoder *self);
 static void ShiftOutput(RangeEncoder *self);
 static void WriteWrappedDigit(RangeEncoder *self,int output);
 
@@ -17,32 +17,12 @@ void InitRangeEncoder(RangeEncoder *self,FILE *fh)
 	self->fh=fh;
 }
 
-void WriteBit(RangeEncoder *self,int bit,int weight)
-{
-	uint32_t threshold=(self->range>>12)*weight;
-
-	if(bit==0)
-	{
-		self->range=threshold;
-	}
-	else
-	{
-		self->range-=threshold;
-
-		uint32_t oldlow=self->low;
-		self->low+=threshold;
-		self->overflow|=self->low<oldlow;
-	}
-
-	Normalize(self);
-}
-
 void FinishRangeEncoder(RangeEncoder *self)
 {
 	for(int i=0;i<5;i++) ShiftOutput(self);
 }
 
-static void Normalize(RangeEncoder *self)
+void NormalizeRangeEncoder(RangeEncoder *self)
 {
 	while(self->range<0x1000000)
 	{
@@ -80,6 +60,30 @@ static void WriteWrappedDigit(RangeEncoder *self,int output)
 	fputc(output&0xff,self->fh);
 }
 
+
+
+void WriteBit(RangeEncoder *self,int bit,int weight)
+{
+	uint32_t range,low;
+	GetRangeEncoderState(self,&range,&low);
+	EncodeBit(&range,&low,bit,weight);
+	UpdateRangeEncoderState(self,range,low);
+}
+
+void WriteDynamicBit(RangeEncoder *self,int bit,int *weight,int shift)
+{
+	uint32_t range,low;
+	GetRangeEncoderState(self,&range,&low);
+	EncodeDynamicBit(&range,&low,bit,weight,shift);
+	UpdateRangeEncoderState(self,range,low);
+}
+
+void WriteUniversalCode(RangeEncoder *self,uint32_t value,
+int *weights1,int shift1,int *weights2,int shift2)
+{
+	WriteUniversalCodeImplementation(WriteDynamicBit,self,value,
+	weights1,shift1,weights2,shift2);
+}
 
 
 
