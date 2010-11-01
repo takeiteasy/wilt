@@ -1,10 +1,12 @@
 glob:Magic2/*
 glob:Corpus/*
 glob:*.o
+glob:Experimental/Wilt16Compress
+glob:Experimental/Wilt16Decompress
+glob:Experimental/Wilt2Compress
+glob:Experimental/Wilt2Decompress
 glob:Experimental/WiltCompress
-glob:Experimental/WiltCompress16
 glob:Experimental/WiltDecompress
-glob:Experimental/WiltDecompress16
 glob:Experimental/RangeCoder/Test
 glob:Reference/WiltCompress
 glob:Reference/WiltCompress16

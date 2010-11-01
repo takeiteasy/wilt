@@ -37,8 +37,8 @@ int typeshift,int literalshift,int lengthshift1,int lengthshift2,int offsetshift
 
 		if(ReadDynamicBit(&dec,&typeweight,typeshift)==1)
 		{
-			int length=(ReadUniversalCode(&dec,lengthweights1,lengthshift1,lengthweights2,lengthshift2)+3);
-			int offs=(ReadUniversalCode(&dec,offsetweights1,offsetshift1,offsetweights2,offsetshift2)+1);
+			int length=(ReadUniversalCode2(&dec,size-pos-3,lengthweights1,lengthshift1,lengthweights2,lengthshift2)+3);
+			int offs=(ReadUniversalCode2(&dec,pos-1,offsetweights1,offsetshift1,offsetweights2,offsetshift2)+1);
 
 			CopyMemory(&buf[pos],&buf[pos-offs],length);
 			pos+=length;

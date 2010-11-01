@@ -107,8 +107,8 @@ int typeshift,int literalshift,int lengthshift1,int lengthshift2,int offsetshift
 		if(FindDictionaryMatch(&dict,pos,&length,&offs))
 		{
 			WriteDynamicBit(&comp,1,&typeweight,typeshift);
-			WriteUniversalCode(&comp,length-3,lengthweights1,lengthshift1,lengthweights2,lengthshift2);
-			WriteUniversalCode(&comp,(pos-offs)-1,offsetweights1,offsetshift1,offsetweights2,offsetshift2);
+			WriteUniversalCode2(&comp,length-3,size-pos-3,lengthweights1,lengthshift1,lengthweights2,lengthshift2);
+			WriteUniversalCode2(&comp,(pos-offs)-1,pos-1,offsetweights1,offsetshift1,offsetweights2,offsetshift2);
 
 			pos+=length;
 		}

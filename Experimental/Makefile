@@ -1,4 +1,4 @@
-CFLAGS=-std=c99 -g
+CFLAGS=-std=c99 -O3 -g
 
 EXECUTABLES=WiltCompress WiltDecompress \
 	Wilt16Compress Wilt16Decompress \
