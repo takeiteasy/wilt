@@ -78,11 +78,23 @@ void WriteDynamicBit(RangeEncoder *self,int bit,int *weight,int shift)
 	UpdateRangeEncoderState(self,range,low);
 }
 
+void WriteBitString(RangeEncoder *self,uint32_t value,int length,int *weights,int shift)
+{
+	WriteBitStringImplementation(WriteDynamicBit,self,value,length,weights,shift);
+}
+
 void WriteUniversalCode(RangeEncoder *self,uint32_t value,
 int *weights1,int shift1,int *weights2,int shift2)
 {
 	WriteUniversalCodeImplementation(WriteDynamicBit,self,value,
 	weights1,shift1,weights2,shift2);
+}
+
+void WriteUniversalCode2(RangeEncoder *self,uint32_t value,
+int max,int *weights1,int shift1,int *weights2,int shift2)
+{
+	WriteUniversalCode2Implementation(WriteDynamicBit,self,value,
+	max,weights1,shift1,weights2,shift2);
 }
 
 

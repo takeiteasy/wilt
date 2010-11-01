@@ -11,7 +11,7 @@ void Test2()
 {
 	printf("Running test set 2...\n");
 
-	printf("Creating regular stream \"test2.data\"...\n");
+	printf("Creating stream \"test2.data\" using dynamic bit coder...\n");
 
 	FILE *out=fopen("test2.data","wb");
 	if(!out)
@@ -35,7 +35,7 @@ void Test2()
 	FinishRangeEncoder(&encoder);
 	fclose(out);
 
-	printf("Reading regular stream \"test2.data\"...\n");
+	printf("Reading stream \"test2.data\"...\n");
 
 	FILE *in=fopen("test2.data","rb");
 	if(!in)

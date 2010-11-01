@@ -11,7 +11,7 @@ void Test3()
 {
 	printf("Running test set 3...\n");
 
-	printf("Creating regular stream \"test3.data\"...\n");
+	printf("Creating stream \"test3.data\" using universal code...\n");
 
 	FILE *out=fopen("test3.data","wb");
 	if(!out)
@@ -39,7 +39,7 @@ void Test3()
 	FinishRangeEncoder(&encoder);
 	fclose(out);
 
-	printf("Reading regular stream \"test3.data\"...\n");
+	printf("Reading stream \"test3.data\"...\n");
 
 	FILE *in=fopen("test3.data","rb");
 	if(!in)

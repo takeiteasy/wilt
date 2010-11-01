@@ -35,8 +35,11 @@ static inline void UpdateRangeEncoderState(RangeEncoder *self,uint32_t newrange,
 
 void WriteBit(RangeEncoder *self,int bit,int weight);
 void WriteDynamicBit(RangeEncoder *self,int bit,int *weight,int shift);
+void WriteBitString(RangeEncoder *self,uint32_t value,int length,int *weights,int shift);
 void WriteUniversalCode(RangeEncoder *self,uint32_t value,
 int *weights1,int shift1,int *weights2,int shift2);
+void WriteUniversalCode2(RangeEncoder *self,uint32_t value,
+int max,int *weights1,int shift1,int *weights2,int shift2);
 
 double CalculateCostOfBit(int bit,int weight);
 

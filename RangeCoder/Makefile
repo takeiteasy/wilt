@@ -5,10 +5,10 @@ all: Test
 clean:
 	rm -f Test *.o
 
-Test: Test.o Test1.o Test2.o Test3.o \
+Test: Test.o Test1.o Test2.o Test3.o Test4.o Test5.o \
       RangeEncoder.o RangeDecoder.o \
       RadixRangeEncoder.o RadixRangeDecoder.o
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ -lm
 
 RadixRangeDecoder.o: RadixRangeDecoder.c RadixRangeDecoder.h \
   DecodeImplementations.h
@@ -21,3 +21,5 @@ Test1.o: Test1.c RangeEncoder.h RangeDecoder.h RadixRangeEncoder.h \
   RadixRangeDecoder.h
 Test2.o: Test2.c RangeEncoder.h RangeDecoder.h
 Test3.o: Test3.c RangeEncoder.h RangeDecoder.h
+Test4.o: Test4.c RangeEncoder.h RangeDecoder.h
+Test5.o: Test5.c RangeEncoder.h RangeDecoder.h

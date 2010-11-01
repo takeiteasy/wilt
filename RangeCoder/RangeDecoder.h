@@ -30,7 +30,10 @@ static inline void UpdateRangeDecoderState(RangeDecoder *self,uint32_t newrange,
 
 int ReadBit(RangeDecoder *self,int weight);
 int ReadDynamicBit(RangeDecoder *self,int *weight,int shift);
+uint32_t ReadBitString(RangeDecoder *self,int length,int *weights,int shift);
 uint32_t ReadUniversalCode(RangeDecoder *self,
 int *weights1,int shift1,int *weights2,int shift2);
+uint32_t ReadUniversalCode2(RangeDecoder *self,
+int max,int *weights1,int shift1,int *weights2,int shift2);
 
 #endif
