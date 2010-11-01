@@ -2,7 +2,8 @@ CFLAGS=-std=c99 -O3 -g
 
 EXECUTABLES=WiltCompress WiltDecompress \
 	Wilt16Compress Wilt16Decompress \
-	Wilt2Compress Wilt2Decompress
+	Wilt2Compress Wilt2Decompress \
+	MarkovCompress
 
 all: $(EXECUTABLES)
 
@@ -27,12 +28,16 @@ Wilt2Compress: Wilt2Compress.o RangeCoder/RangeEncoder.o
 Wilt2Decompress: Wilt2Decompress.o RangeCoder/RangeDecoder.o
 	$(CC) $(CFLAGS) -o $@ $^
 
+MarkovCompress: MarkovCompress.o RangeCoder/RangeEncoder.o
+	$(CC) $(CFLAGS) -o $@ $^
+
 Wilt16Compress.o: Wilt16Compress.c RangeCoder/RangeEncoder.h
 Wilt16Decompress.o: Wilt16Decompress.c RangeCoder/RangeDecoder.h
 Wilt2Compress.o: Wilt2Compress.c RangeCoder/RangeEncoder.h
 Wilt2Decompress.o: Wilt2Decompress.c RangeCoder/RangeDecoder.h
 WiltCompress.o: WiltCompress.c RangeCoder/RangeEncoder.h
 WiltDecompress.o: WiltDecompress.c RangeCoder/RangeDecoder.h
+MarkovCompress.o: MarkovCompress.c RangeCoder/RangeEncoder.h
 
 RadixRangeDecoder.o: RangeCoder/RadixRangeDecoder.c \
   RangeCoder/RadixRangeDecoder.h RangeCoder/DecodeImplementations.h

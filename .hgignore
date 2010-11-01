@@ -7,6 +7,7 @@ glob:Experimental/Wilt2Compress
 glob:Experimental/Wilt2Decompress
 glob:Experimental/WiltCompress
 glob:Experimental/WiltDecompress
+glob:Experimental/MarkovCompress
 glob:Experimental/RangeCoder/Test
 glob:Reference/WiltCompress
 glob:Reference/WiltCompress16
