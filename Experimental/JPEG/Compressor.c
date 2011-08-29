@@ -33,19 +33,20 @@ void FreeJPEGCompressor(JPEGCompressor *self)
 static int DecodeValue(int magnitude,int remainder)
 {
 	if(magnitude==0) return 0;
-	else if(remainder&(1<<magnitude)) return remainder;
-	else return remainder-(1<<remainder)+1;
+	else if(remainder&(1<<magnitude-1)) return remainder;
+	else return remainder-(1<<magnitude)+1;
 }
 
-void TestJPEGCompressor(JPEGCompressor *self,FILE *output)
+bool TestJPEGCompressor(JPEGCompressor *self,FILE *output)
 {
 	// Parse the JPEG structure. If this is the first bundle,
 	// we have to first find the start marker.
 
 	int parseres=ParseJPEGMetadata(&self->jpeg,self->start,self->end-self->start);
-	if(parseres==JPEGMetadataParsingFailed) exit(1);
+	if(parseres==JPEGMetadataParsingFailed) return false;
+	if(parseres==JPEGMetadataFoundEndOfImage) return false;
 
-	//if(parseres==JPEGMetadataFoundEndOfImage)
+	// TODO: Do sanity and conformance checks here.
 
 	InitializeBitStreamReader(&self->bitstream,self->start+self->jpeg.bytesparsed,
 	self->end-self->start-self->jpeg.bytesparsed);
@@ -78,9 +79,23 @@ void TestJPEGCompressor(JPEGCompressor *self,FILE *output)
 		}
 	}
 
+	int predicted[4]={0};
+
+	int restartcounter=0;
+	int restartindex=0;
 	for(int row=0;row<self->jpeg.verticalmcus;row++)
 	for(int col=0;col<self->jpeg.horizontalmcus;col++)
 	{
+		if(self->jpeg.restartinterval&&restartcounter==self->jpeg.restartinterval)
+		{
+			if(!FlushBitStreamAndSkipRestartMarker(&self->bitstream,restartindex)) return false;
+			restartindex=(restartindex+1)&7;
+			restartcounter=0;
+			memset(predicted,0,sizeof(predicted));
+		}
+
+		restartcounter++;
+
 		for(int comp=0;comp<self->jpeg.numscancomponents;comp++)
 		{
 			int hblocks=self->jpeg.scancomponents[comp].component->horizontalfactor;
@@ -88,30 +103,46 @@ void TestJPEGCompressor(JPEGCompressor *self,FILE *output)
 			int dcindex=self->jpeg.scancomponents[comp].dcindex;
 			int acindex=self->jpeg.scancomponents[comp].acindex;
 
-			for(int y=0;y<vblocks;y++)
-			for(int x=0;x<hblocks;x++)
+			for(int mcu_y=0;mcu_y<vblocks;mcu_y++)
+			for(int mcu_x=0;mcu_x<hblocks;mcu_x++)
 			{
+				int x=col*hblocks+mcu_x;
+				int y=row*vblocks+mcu_y;
+
 				JPEGBlock testblock;
 				JPEGBlock *currblock=&testblock;
 
 				int dcmagnitude=ReadHuffmanCode(&self->bitstream,&self->dctables[dcindex]);
+				if(dcmagnitude<0) return false;
 				int dcremainder=ReadBitString(&self->bitstream,dcmagnitude);
+				if(dcremainder<0) return false;
 
-				currblock->c[0]=DecodeValue(dcmagnitude,dcremainder);
+				int delta=DecodeValue(dcmagnitude,dcremainder);
+				currblock->c[0]=predicted[comp]+delta;
+				predicted[comp]+=delta;
 
 				int coeff=1;
 				while(coeff<64)
 				{
 					int val=ReadHuffmanCode(&self->bitstream,&self->actables[acindex]);
+					if(val<0) return false;
+					if(val==0x00) break;
+
 					int zeroes=val>>4;
 					int acmagnitude=val&0x0f;
-					int acremainder=ReadBitString(&self->bitstream,dcmagnitude);
+					int acremainder=ReadBitString(&self->bitstream,acmagnitude);
+					if(acremainder<0) return false;
 
 					// TODO: range checks
 					for(int i=0;i<zeroes;i++) currblock->c[coeff++]=0;
 					currblock->c[coeff++]=DecodeValue(acmagnitude,acremainder);
 				}
 
+				for(int i=coeff;i<64;i++) currblock->c[i]=0;
+
+				currblock->eob=coeff-1;
+
+fprintf(stderr,"%d,%d,%d: ",x,y,comp);
 for(int i=0;i<64;i++) fprintf(stderr,"%d ",currblock->c[i]);
 fprintf(stderr,"\n");
 			}
@@ -140,6 +171,7 @@ fprintf(stderr,"\n");
 		if(!self->blocks[i]) return JPEGOutOfMemoryError;
 	}*/
 
+	return true;
 }
 
 

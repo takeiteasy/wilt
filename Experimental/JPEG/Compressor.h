@@ -39,7 +39,7 @@ typedef struct JPEGCompressor
 JPEGCompressor *AllocJPEGCompressor(const void *bytes,size_t length);
 void FreeJPEGCompressor(JPEGCompressor *self);
 
-void TestJPEGCompressor(JPEGCompressor *self,FILE *output);
+bool TestJPEGCompressor(JPEGCompressor *self,FILE *output);
 
 #endif
 

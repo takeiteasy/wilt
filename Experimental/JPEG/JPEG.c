@@ -230,6 +230,7 @@ int ParseJPEGMetadata(JPEGMetadata *self,const void *bytes,size_t length)
 			{
 				int size=ParseSize(ptr,end);
 				if(!size) return JPEGMetadataParsingFailed;
+				const uint8_t *next=ptr+size;
 
 				if(size<6) return JPEGMetadataParsingFailed;
 
@@ -272,14 +273,15 @@ int ParseJPEGMetadata(JPEGMetadata *self,const void *bytes,size_t length)
 				if(ptr[4+self->numscancomponents*2]!=63) return JPEGMetadataParsingFailed;
 				if(ptr[5+self->numscancomponents*2]!=0) return JPEGMetadataParsingFailed;
 
-				self->bytesparsed=ptr-(const uint8_t *)bytes;
+				self->bytesparsed=next-(const uint8_t *)bytes;
+
 				return JPEGMetadataFoundStartOfScan;
 			}
 			break;
 
 
 			case 0xd9: // End of image
-				self->bytesparsed=ptr-(const uint8_t *)bytes;
+				self->bytesparsed=ptr-(const uint8_t *)bytes+2;
 				return JPEGMetadataFoundEndOfImage;
 
 			default:

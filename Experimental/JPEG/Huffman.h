@@ -2,6 +2,7 @@
 #define __HUFFMAN_H__
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdlib.h>
 
 typedef struct HuffmanTable
@@ -26,7 +27,8 @@ typedef struct BitStreamReader
 void InitializeBitStreamReader(BitStreamReader *self,const void *bytes,size_t length);
 int ReadBitString(BitStreamReader *self,unsigned int length);
 int ReadHuffmanCode(BitStreamReader *self,HuffmanTable *table);
-void FlushBitStream(BitStreamReader *self);
+bool FlushBitStream(BitStreamReader *self);
+bool FlushBitStreamAndSkipRestartMarker(BitStreamReader *self,int n);
 
 #endif
 

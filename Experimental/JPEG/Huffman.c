@@ -55,9 +55,22 @@ int ReadHuffmanCode(BitStreamReader *self,HuffmanTable *table)
 	return value;
 }
 
-void FlushBitStream(BitStreamReader *self)
+bool FlushBitStream(BitStreamReader *self)
 {
-	DiscardBits(self,self->numbits&7);
+	int extrabits=self->numbits&7;
+	if(extrabits==0) return true;
+
+	return ReadBitString(self,extrabits)==(1<<extrabits)-1;
+}
+
+bool FlushBitStreamAndSkipRestartMarker(BitStreamReader *self,int n)
+{
+	if(!FlushBitStream(self)) return false;
+	if(self->pos+2>self->end) return false;
+	if(self->pos[0]!=0xff) return false;	
+	if(self->pos[1]!=0xd0+n) return false;	
+	self->pos+=2;
+	return true;
 }
 
 static void FillBits(BitStreamReader *self,unsigned int required)
@@ -65,7 +78,18 @@ static void FillBits(BitStreamReader *self,unsigned int required)
 	while(self->numbits<required)
 	{
 		if(self->pos>=self->end) return;
-		self->bits|=(*self->pos++)<<(24-self->numbits);
+		int b=self->pos[0];
+
+		if(b==0xff)
+		{
+			if(self->pos+1>=self->end) return;
+			int b2=self->pos[1];
+			if(b2!=0) return;
+			self->pos+=2;
+		}
+		else self->pos++;
+
+		self->bits|=b<<(24-self->numbits);
 		self->numbits+=8;
 	}
 }
