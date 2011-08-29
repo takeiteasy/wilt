@@ -1,0 +1,4 @@
+Compressor.o: Compressor.c Compressor.h JPEG.h Huffman.h \
+ ../RangeCoder/RangeEncoder.h
+Huffman.o: Huffman.c Huffman.h
+JPEG.o: JPEG.c JPEG.h
