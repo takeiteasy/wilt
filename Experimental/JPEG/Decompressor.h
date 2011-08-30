@@ -1,30 +1,30 @@
-#ifndef __WINZIP_JPEG_DECOMPRESSOR_H__
-#define __WINZIP_JPEG_DECOMPRESSOR_H__
+#ifndef __JPEG_DECOMPRESSOR_H__
+#define __JPEG_DECOMPRESSOR_H__
 
-#include "InputStream.h"
-#include "ArithmeticDecoder.h"
+//#include "InputStream.h"
 #include "JPEG.h"
+#include "../RangeCoder/RangeDecoder.h"
 
 #include <stdint.h>
 #include <stdbool.h>
 
-#define WinZipJPEGNoError 0
-#define WinZipJPEGEndOfStreamError 1
-#define WinZipJPEGOutOfMemoryError 2
-#define WinZipJPEGInvalidHeaderError 3
-#define WinZipJPEGLZMAError 4
-#define WinZipJPEGParseError 5
+#define JPEGNoError 0
+#define JPEGEndOfStreamError 1
+#define JPEGOutOfMemoryError 2
+#define JPEGInvalidHeaderError 3
+#define JPEGLZMAError 4
+#define JPEGParseError 5
 
-typedef struct WinZipJPEGDecompressor
+typedef struct JPEGDecompressor
 {
-	WinZipJPEGReadFunction *readfunc;
+/*	JPEGReadFunction *readfunc;
 	void *inputcontext;
 
 	uint32_t metadatalength;
 	uint8_t *metadatabytes;
 
 	bool isfirstbundle,reachedend;
-	WinZipJPEGMetadata jpeg;
+	JPEGMetadata jpeg;
 
 	bool slicesavailable;
 	unsigned int slicevalue,sliceheight;
@@ -36,46 +36,46 @@ typedef struct WinZipJPEGDecompressor
 	unsigned int bitlength;
 	bool needsstuffing;
 
-	WinZipJPEGArithmeticDecoder decoder;
+	JPEGArithmeticDecoder decoder;
 
-	WinZipJPEGContext eobbins[4][13][63]; // 321 in WinZip.
-	WinZipJPEGContext zerobins[4][62][3][6]; // 1140 in WinZip.
-	WinZipJPEGContext pivotbins[4][63][5][7]; // 2256 in WinZip.
-	WinZipJPEGContext acmagnitudebins[4][3][9][9][9];
-	WinZipJPEGContext acremainderbins[4][3][7][13];
-	WinZipJPEGContext acsignbins[4][27][3][2];
-	WinZipJPEGContext dcmagnitudebins[4][13][10]; // 1 in WinZip.
-	WinZipJPEGContext dcremainderbins[4][13][14]; // 131 in WinZip.
-	WinZipJPEGContext dcsignbins[4][2][2][2]; // 313 in WinZip.
-	WinZipJPEGContext fixedcontext; // 0 in WinZip.
+	JPEGContext eobbins[4][13][63]; // 321 in .
+	JPEGContext zerobins[4][62][3][6]; // 1140 in .
+	JPEGContext pivotbins[4][63][5][7]; // 2256 in .
+	JPEGContext acmagnitudebins[4][3][9][9][9];
+	JPEGContext acremainderbins[4][3][7][13];
+	JPEGContext acsignbins[4][27][3][2];
+	JPEGContext dcmagnitudebins[4][13][10]; // 1 in .
+	JPEGContext dcremainderbins[4][13][14]; // 131 in .
+	JPEGContext dcsignbins[4][2][2][2]; // 313 in .
+	JPEGContext fixedcontext; // 0 in .
 
-	WinZipJPEGBlock *blocks[4];
+	JPEGBlock *blocks[4];
 
-	WinZipJPEGBlock *currblock;
+	JPEGBlock *currblock;
 	bool mcusavailable;
 	unsigned int mcurow,mcucol,mcucomp,mcux,mcuy,mcucoeff;
 	unsigned int mcucounter,restartmarkerindex;
-	bool writerestartmarker;
-} WinZipJPEGDecompressor;
+	bool writerestartmarker;*/
+} JPEGDecompressor;
 
-WinZipJPEGDecompressor *AllocWinZipJPEGDecompressor(WinZipJPEGReadFunction *readfunc,void *inputcontext);
-void FreeWinZipJPEGDecompressor(WinZipJPEGDecompressor *self);
+JPEGDecompressor *AllocJPEGDecompressor(/*JPEGReadFunction *readfunc,void *inputcontext*/);
+void FreeJPEGDecompressor(JPEGDecompressor *self);
 
-int ReadWinZipJPEGHeader(WinZipJPEGDecompressor *self);
-int ReadNextWinZipJPEGBundle(WinZipJPEGDecompressor *self);
-int ReadNextWinZipJPEGSlice(WinZipJPEGDecompressor *self);
+/*int ReadJPEGHeader(JPEGDecompressor *self);
+int ReadNextJPEGBundle(JPEGDecompressor *self);
+int ReadNextJPEGSlice(JPEGDecompressor *self);
 
-size_t EncodeWinZipJPEGBlocksToBuffer(WinZipJPEGDecompressor *self,void *bytes,size_t length);
+size_t EncodeJPEGBlocksToBuffer(JPEGDecompressor *self,void *bytes,size_t length);
 
-static inline bool IsFinalWinZipJPEGBundle(WinZipJPEGDecompressor *self)
+static inline bool IsFinalJPEGBundle(JPEGDecompressor *self)
 { return self->reachedend; }
-static inline bool AreMoreWinZipJPEGSlicesAvailable(WinZipJPEGDecompressor *self)
+static inline bool AreMoreJPEGSlicesAvailable(JPEGDecompressor *self)
 { return !self->reachedend && self->slicesavailable; }
-static inline bool AreMoreWinZipJPEGBytesAvailable(WinZipJPEGDecompressor *self)
+static inline bool AreMoreJPEGBytesAvailable(JPEGDecompressor *self)
 { return self->mcusavailable || self->bitlength>=8 || self->needsstuffing || self->writerestartmarker; }
 
-static inline uint32_t WinZipJPEGBundleMetadataLength(WinZipJPEGDecompressor *self) { return self->metadatalength; }
-static inline uint8_t *WinZipJPEGBundleMetadataBytes(WinZipJPEGDecompressor *self) { return self->metadatabytes; }
+static inline uint32_t JPEGBundleMetadataLength(JPEGDecompressor *self) { return self->metadatalength; }
+static inline uint8_t *JPEGBundleMetadataBytes(JPEGDecompressor *self) { return self->metadatabytes; }*/
 
 #endif
 

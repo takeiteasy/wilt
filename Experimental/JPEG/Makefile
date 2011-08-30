@@ -7,9 +7,11 @@ CC=gcc
 LD=gcc
 
 ALL_C_FILES=Compressor.c \
+            Decompressor.c \
             Huffman.c \
             JPEG.c \
             SimpleCompressor.c \
+            ../RangeCoder/RangeDecoder.c \
             ../RangeCoder/RangeEncoder.c
 
 SIMPLECOMPRESSOR_C_FILES=Compressor.c \
@@ -18,16 +20,26 @@ SIMPLECOMPRESSOR_C_FILES=Compressor.c \
                          SimpleCompressor.c \
                          ../RangeCoder/RangeEncoder.c
 
+SIMPLEDECOMPRESSOR_C_FILES=Decompressor.c \
+                           Huffman.c \
+                           JPEG.c \
+                           SimpleDecompressor.c \
+                           ../RangeCoder/RangeDecoder.c
+
 ALL_OBJS=$(ALL_C_FILES:.c=.o)
 SIMPLECOMPRESSOR_OBJS=$(SIMPLECOMPRESSOR_C_FILES:.c=.o)
+SIMPLEDECOMPRESSOR_OBJS=$(SIMPLEDECOMPRESSOR_C_FILES:.c=.o)
 
-all: SimpleCompressor
+all: SimpleCompressor SimpleDecompressor
 
 SimpleCompressor: $(SIMPLECOMPRESSOR_OBJS)
 	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
+SimpleDecompressor: $(SIMPLEDECOMPRESSOR_OBJS)
+	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
 clean:
-	rm -rf $(ALL_OBJS) SimpleCompressor
+	rm -rf $(ALL_OBJS) SimpleCompressor SimpleDecompressor
 
 depend:
 	$(CC) -MM $(CFLAGS) $(ALL_C_FILES) >Dependencies.tmp
