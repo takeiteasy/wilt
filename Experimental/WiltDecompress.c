@@ -17,7 +17,7 @@ void DecompressData(FILE *fh,uint8_t *buf,uint32_t size,
 int typeshift,int literalshift,int lengthshift1,int lengthshift2,int offsetshift1,int offsetshift2)
 {
 	RangeDecoder dec;
-	InitRangeDecoder(&dec,fh);
+	InitializeRangeDecoder(&dec,STDIOReadFunction,fh);
 
 	int typeweight=0x800;
 

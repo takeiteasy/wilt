@@ -21,7 +21,7 @@ void Test3()
 	}
 
 	RangeEncoder encoder;
-	InitRangeEncoder(&encoder,out);
+	InitializeRangeEncoder(&encoder,STDIOWriteFunction,out);
 
 	int weights1[33],weights2[33];
 
@@ -49,7 +49,7 @@ void Test3()
 	}
 
 	RangeDecoder decoder;
-	InitRangeDecoder(&decoder,in);
+	InitializeRangeDecoder(&decoder,STDIOReadFunction,in);
 
 	for(int i=0;i<33;i++) weights1[i]=weights2[i]=0x800;
 

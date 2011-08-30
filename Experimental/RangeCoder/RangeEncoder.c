@@ -6,7 +6,8 @@
 static void ShiftOutput(RangeEncoder *self);
 static void WriteWrappedDigit(RangeEncoder *self,int output);
 
-void InitRangeEncoder(RangeEncoder *self,FILE *fh)
+void InitializeRangeEncoder(RangeEncoder *self,
+RangeEncoderWriteFunction *writefunc,void *writecontext)
 {
 	self->range=0xffffffff;
 	self->low=0;
@@ -14,7 +15,9 @@ void InitRangeEncoder(RangeEncoder *self,FILE *fh)
 	self->nextbyte=-1;
 	self->overflow=false;
 
-	self->fh=fh;
+	self->writefunc=writefunc;
+	self->writecontext=writecontext;
+	self->writefailed=false;
 }
 
 void FinishRangeEncoder(RangeEncoder *self)
@@ -57,7 +60,8 @@ static void ShiftOutput(RangeEncoder *self)
 
 static void WriteWrappedDigit(RangeEncoder *self,int output)
 {
-	fputc(output&0xff,self->fh);
+	if(self->writefunc(output&0xff,self->writecontext))
+	self->writefailed=true;
 }
 
 

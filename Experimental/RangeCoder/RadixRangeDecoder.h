@@ -3,20 +3,28 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdio.h>
+
+typedef int RadixRangeDecoderReadFunction(void *readcontext);
+
+#define STDIORadixReadFunction ((RadixRangeDecoderReadFunction *)fgetc)
 
 typedef struct RadixRangeDecoder
 {
 	uint32_t radix,bottom;
 	uint32_t range,code;
 
-	FILE *fh;
+	RadixRangeDecoderReadFunction *readfunc;
+	void *readcontext;
+	bool eof;
 
 	uint8_t reversealphabet[256];
 } RadixRangeDecoder;
 
-void InitRadixRangeDecoder(RadixRangeDecoder *self,int radix,uint8_t *alphabet,FILE *fh);
+void InitializeRadixRangeDecoder(RadixRangeDecoder *self,int radix,uint8_t *alphabet,
+RadixRangeDecoderReadFunction *readfunc,void *readcontext);
 void NormalizeRadixRangeDecoder(RadixRangeDecoder *self);
+
+static inline bool RadixRangeDecoderReachedEOF(RadixRangeDecoder *self) { return self->eof; }
 
 static inline int GetRadixRangeDecoderState(RadixRangeDecoder *self,uint32_t *range,uint32_t *code)
 {

@@ -1,23 +1,38 @@
 #include "RangeDecoder.h"
 #include "DecodeImplementations.h"
 
-void InitRangeDecoder(RangeDecoder *self,FILE *fh)
+static int ReadByte(RangeDecoder *self);
+
+void InitializeRangeDecoder(RangeDecoder *self,
+RangeDecoderReadFunction *readfunc,void *readcontext)
 {
 	self->range=0xffffffff;
 	self->code=0;
-	self->fh=fh;
 
-	for(int i=0;i<4;i++) self->code=(self->code<<8)|fgetc(fh);
+	self->readfunc=readfunc;
+	self->readcontext=readcontext;
+	self->eof=false;
+
+	for(int i=0;i<4;i++) self->code=(self->code<<8)|ReadByte(self);
 }
 
 void NormalizeRangeDecoder(RangeDecoder *self)
 {
 	while(self->range<0x1000000)
 	{
-		self->code=(self->code<<8)|fgetc(self->fh);
+		self->code=(self->code<<8)|ReadByte(self);
 		self->range<<=8;
 	}
 }
+
+static int ReadByte(RangeDecoder *self)
+{
+	int b=self->readfunc(self->readcontext);
+	if(b<0) { self->eof=true; return 0; }
+	return b;
+}
+
+
 
 int ReadBit(RangeDecoder *self,int weight)
 {

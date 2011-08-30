@@ -6,7 +6,7 @@ int main(int argc,const char **argv)
 {
 	if(argc!=3)
 	{
-		fprintf(stderr,"Usage: %s infile.jpg outfile.dat\n",argv[0]);
+		fprintf(stderr,"Usage: %s infile.jpg outfile.data\n",argv[0]);
 		exit(1);
 	}
 

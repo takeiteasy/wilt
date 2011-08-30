@@ -21,7 +21,7 @@ void Test2()
 	}
 
 	RangeEncoder encoder;
-	InitRangeEncoder(&encoder,out);
+	InitializeRangeEncoder(&encoder,STDIOWriteFunction,out);
 
 	int weight=0x800;
 	for(int shift=1;shift<16;shift++)
@@ -45,7 +45,7 @@ void Test2()
 	}
 
 	RangeDecoder decoder;
-	InitRangeDecoder(&decoder,in);
+	InitializeRangeDecoder(&decoder,STDIOReadFunction,in);
 
 	weight=0x800;
 	for(int shift=1;shift<16;shift++)

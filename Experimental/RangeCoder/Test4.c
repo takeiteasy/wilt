@@ -21,7 +21,7 @@ void Test4()
 	}
 
 	RangeEncoder encoder;
-	InitRangeEncoder(&encoder,out);
+	InitializeRangeEncoder(&encoder,STDIOWriteFunction,out);
 
 	int weights[65536];
 	for(int length=1;length<=16;length++)
@@ -48,7 +48,7 @@ void Test4()
 	}
 
 	RangeDecoder decoder;
-	InitRangeDecoder(&decoder,in);
+	InitializeRangeDecoder(&decoder,STDIOReadFunction,in);
 
 	for(int length=1;length<=16;length++)
 	{

@@ -3,17 +3,25 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdio.h>
+
+typedef int RangeDecoderReadFunction(void *readcontext);
+
+#define STDIOReadFunction ((RangeDecoderReadFunction *)fgetc)
 
 typedef struct RangeDecoder
 {
 	uint32_t range,code;
 
-	FILE *fh;
+	RangeDecoderReadFunction *readfunc;
+	void *readcontext;
+	bool eof;
 } RangeDecoder;
 
-void InitRangeDecoder(RangeDecoder *self,FILE *fh);
+void InitializeRangeDecoder(RangeDecoder *self,
+RangeDecoderReadFunction *readfunc,void *readcontext);
 void NormalizeRangeDecoder(RangeDecoder *self);
+
+static inline bool RangeDecoderReachedEOF(RangeDecoder *self) { return self->eof; }
 
 static inline int GetRangeDecoderState(RangeDecoder *self,uint32_t *range,uint32_t *code)
 {

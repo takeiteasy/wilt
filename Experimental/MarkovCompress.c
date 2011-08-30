@@ -11,7 +11,7 @@
 void CompressData(FILE *fh,uint8_t *buf,uint32_t size,int shift)
 {
 	RangeEncoder comp;
-	InitRangeEncoder(&comp,fh);
+	InitializeRangeEncoder(&comp,STDIOWriteFunction,fh);
 
 	int weights[256][256];
 	for(int i=0;i<256;i++)

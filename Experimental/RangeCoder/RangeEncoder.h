@@ -3,7 +3,10 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdio.h>
+
+typedef int RangeEncoderWriteFunction(int b,void *writecontext);
+
+#define STDIOWriteFunction ((RangeEncoderWriteFunction *)fputc)
 
 typedef struct RangeEncoder
 {
@@ -11,12 +14,17 @@ typedef struct RangeEncoder
 	int numextrabytes,nextbyte;
 	bool overflow,firstbyte;
 
-	FILE *fh;
+	RangeEncoderWriteFunction *writefunc;
+	void *writecontext;
+	bool writefailed;
 } RangeEncoder;
 
-void InitRangeEncoder(RangeEncoder *self,FILE *fh);
+void InitializeRangeEncoder(RangeEncoder *self,
+RangeEncoderWriteFunction *writefunc,void *writecontext);
 void FinishRangeEncoder(RangeEncoder *self);
 void NormalizeRangeEncoder(RangeEncoder *self);
+
+static inline bool RangeEncoderWritingFailed(RangeEncoder *self) { return self->writefailed; }
 
 static inline int GetRangeEncoderState(RangeEncoder *self,uint32_t *range,uint32_t *low)
 {

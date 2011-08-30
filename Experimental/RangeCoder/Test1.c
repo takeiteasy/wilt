@@ -31,7 +31,7 @@ void Test1()
 		}
 
 		RangeEncoder encoder;
-		InitRangeEncoder(&encoder,out);
+		InitializeRangeEncoder(&encoder,STDIOWriteFunction,out);
 		RunTests(RegularOutput,&encoder);
 		FinishRangeEncoder(&encoder);
 		fclose(out);
@@ -47,7 +47,7 @@ void Test1()
 		}
 	
 		RadixRangeEncoder encoder;
-		InitRadixRangeEncoder(&encoder,256,NULL,out);
+		InitializeRadixRangeEncoder(&encoder,256,NULL,STDIOWriteFunction,out);
 		RunTests(RadixOutput,&encoder);
 		FinishRadixRangeEncoder(&encoder);
 		fclose(out);
@@ -63,7 +63,7 @@ void Test1()
 		}
 	
 		RadixRangeEncoder encoder;
-		InitRadixRangeEncoder(&encoder,sizeof(URLSafeAlphabet),URLSafeAlphabet,out);
+		InitializeRadixRangeEncoder(&encoder,sizeof(URLSafeAlphabet),URLSafeAlphabet,STDIOWriteFunction,out);
 		RunTests(RadixOutput,&encoder);
 		FinishRadixRangeEncoder(&encoder);
 		fclose(out);
@@ -79,7 +79,7 @@ void Test1()
 		}
 	
 		RadixRangeEncoder encoder;
-		InitRadixRangeEncoder(&encoder,sizeof(Base64Alphabet),Base64Alphabet,out);
+		InitializeRadixRangeEncoder(&encoder,sizeof(Base64Alphabet),Base64Alphabet,STDIOWriteFunction,out);
 		RunTests(RadixOutput,&encoder);
 		FinishRadixRangeEncoder(&encoder);
 		fclose(out);
@@ -95,7 +95,7 @@ void Test1()
 		}
 	
 		RadixRangeEncoder encoder;
-		InitRadixRangeEncoder(&encoder,sizeof(HexAlphabet),HexAlphabet,out);
+		InitializeRadixRangeEncoder(&encoder,sizeof(HexAlphabet),HexAlphabet,STDIOWriteFunction,out);
 		RunTests(RadixOutput,&encoder);
 		FinishRadixRangeEncoder(&encoder);
 		fclose(out);
@@ -111,7 +111,7 @@ void Test1()
 		}
 	
 		RadixRangeEncoder encoder;
-		InitRadixRangeEncoder(&encoder,10,(uint8_t *)"0123456789",out);
+		InitializeRadixRangeEncoder(&encoder,10,(uint8_t *)"0123456789",STDIOWriteFunction,out);
 		RunTests(RadixOutput,&encoder);
 		FinishRadixRangeEncoder(&encoder);
 		fclose(out);
@@ -127,7 +127,7 @@ void Test1()
 		}
 	
 		RadixRangeEncoder encoder;
-		InitRadixRangeEncoder(&encoder,2,(uint8_t *)"01",out);
+		InitializeRadixRangeEncoder(&encoder,2,(uint8_t *)"01",STDIOWriteFunction,out);
 		RunTests(RadixOutput,&encoder);
 		FinishRadixRangeEncoder(&encoder);
 		fclose(out);
@@ -144,7 +144,7 @@ void Test1()
 		}
 
 		RangeDecoder decoder;
-		InitRangeDecoder(&decoder,in);
+		InitializeRangeDecoder(&decoder,STDIOReadFunction,in);
 		RunTests(RegularInput,&decoder);
 		fclose(in);
 	}
@@ -159,7 +159,7 @@ void Test1()
 		}
 
 		RangeDecoder decoder;
-		InitRangeDecoder(&decoder,in);
+		InitializeRangeDecoder(&decoder,STDIOReadFunction,in);
 		RunTests(RegularInput,&decoder);
 		fclose(in);
 	}
@@ -174,7 +174,7 @@ void Test1()
 		}
 
 		RadixRangeDecoder decoder;
-		InitRadixRangeDecoder(&decoder,256,NULL,in);
+		InitializeRadixRangeDecoder(&decoder,256,NULL,STDIOReadFunction,in);
 		RunTests(RadixInput,&decoder);
 		fclose(in);
 	}
@@ -189,7 +189,7 @@ void Test1()
 		}
 
 		RadixRangeDecoder decoder;
-		InitRadixRangeDecoder(&decoder,256,NULL,in);
+		InitializeRadixRangeDecoder(&decoder,256,NULL,STDIOReadFunction,in);
 		RunTests(RadixInput,&decoder);
 		fclose(in);
 	}
@@ -204,7 +204,7 @@ void Test1()
 		}
 
 		RadixRangeDecoder decoder;
-		InitRadixRangeDecoder(&decoder,sizeof(URLSafeAlphabet),URLSafeAlphabet,in);
+		InitializeRadixRangeDecoder(&decoder,sizeof(URLSafeAlphabet),URLSafeAlphabet,STDIOReadFunction,in);
 		RunTests(RadixInput,&decoder);
 		fclose(in);
 	}
@@ -219,7 +219,7 @@ void Test1()
 		}
 
 		RadixRangeDecoder decoder;
-		InitRadixRangeDecoder(&decoder,sizeof(Base64Alphabet),Base64Alphabet,in);
+		InitializeRadixRangeDecoder(&decoder,sizeof(Base64Alphabet),Base64Alphabet,STDIOReadFunction,in);
 		RunTests(RadixInput,&decoder);
 		fclose(in);
 	}
@@ -234,7 +234,7 @@ void Test1()
 		}
 
 		RadixRangeDecoder decoder;
-		InitRadixRangeDecoder(&decoder,sizeof(HexAlphabet),HexAlphabet,in);
+		InitializeRadixRangeDecoder(&decoder,sizeof(HexAlphabet),HexAlphabet,STDIOReadFunction,in);
 		RunTests(RadixInput,&decoder);
 		fclose(in);
 	}
@@ -249,7 +249,7 @@ void Test1()
 		}
 
 		RadixRangeDecoder decoder;
-		InitRadixRangeDecoder(&decoder,10,(uint8_t *)"0123456789",in);
+		InitializeRadixRangeDecoder(&decoder,10,(uint8_t *)"0123456789",STDIOReadFunction,in);
 		RunTests(RadixInput,&decoder);
 		fclose(in);
 	}
@@ -264,7 +264,7 @@ void Test1()
 		}
 
 		RadixRangeDecoder decoder;
-		InitRadixRangeDecoder(&decoder,2,(uint8_t *)"01",in);
+		InitializeRadixRangeDecoder(&decoder,2,(uint8_t *)"01",STDIOReadFunction,in);
 		RunTests(RadixInput,&decoder);
 		fclose(in);
 	}

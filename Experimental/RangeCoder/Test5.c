@@ -28,7 +28,7 @@ void Test5()
 		}
 
 		RangeEncoder encoder;
-		InitRangeEncoder(&encoder,out);
+		InitializeRangeEncoder(&encoder,STDIOWriteFunction,out);
 		RunTests(Type1Output,&encoder);
 		FinishRangeEncoder(&encoder);
 		fclose(out);
@@ -44,7 +44,7 @@ void Test5()
 		}
 
 		RangeEncoder encoder;
-		InitRangeEncoder(&encoder,out);
+		InitializeRangeEncoder(&encoder,STDIOWriteFunction,out);
 		RunTests(Type2Output,&encoder);
 		FinishRangeEncoder(&encoder);
 		fclose(out);
@@ -60,7 +60,7 @@ void Test5()
 		}
 
 		RangeDecoder decoder;
-		InitRangeDecoder(&decoder,in);
+		InitializeRangeDecoder(&decoder,STDIOReadFunction,in);
 		RunTests(Type1Input,&decoder);
 		fclose(in);
 	}
@@ -75,7 +75,7 @@ void Test5()
 		}
 
 		RangeDecoder decoder;
-		InitRangeDecoder(&decoder,in);
+		InitializeRangeDecoder(&decoder,STDIOReadFunction,in);
 		RunTests(Type2Input,&decoder);
 		fclose(in);
 	}

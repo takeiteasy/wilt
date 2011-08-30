@@ -5,7 +5,8 @@
 
 static int ReadDigit(RadixRangeDecoder *self);
 
-void InitRadixRangeDecoder(RadixRangeDecoder *self,int radix,uint8_t *alphabet,FILE *fh)
+void InitializeRadixRangeDecoder(RadixRangeDecoder *self,int radix,uint8_t *alphabet,
+RadixRangeDecoderReadFunction *readfunc,void *readcontext)
 {
 	int bottom;
 	if(radix==2) bottom=0x80000000;
@@ -33,7 +34,10 @@ void InitRadixRangeDecoder(RadixRangeDecoder *self,int radix,uint8_t *alphabet,F
 
 	self->range=bottom*radix-1;
 	self->code=0;
-	self->fh=fh;
+
+	self->readfunc=readfunc;
+	self->readcontext=readcontext;
+	self->eof=false;
 
 	memset(self->reversealphabet,0,sizeof(self->reversealphabet));
 	if(alphabet) for(int i=0;i<radix;i++) self->reversealphabet[alphabet[i]]=i;
@@ -55,7 +59,9 @@ void NormalizeRadixRangeDecoder(RadixRangeDecoder *self)
 
 static int ReadDigit(RadixRangeDecoder *self)
 {
-	return self->reversealphabet[fgetc(self->fh)];
+	int b=self->readfunc(self->readcontext);
+	if(b<0) { self->eof=true; return 0; }
+	return self->reversealphabet[b];
 }
 
 

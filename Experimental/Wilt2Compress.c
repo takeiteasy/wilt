@@ -27,7 +27,7 @@ static inline uint16_t GetUInt16LE(uint8_t *ptr)
 	return ptr[0]+(ptr[1]<<8);
 }
 
-static void InitDictionaryLookup(DictionaryLookup *self,uint8_t *buf,uint32_t size)
+static void InitializeDictionaryLookup(DictionaryLookup *self,uint8_t *buf,uint32_t size)
 {
 	self->buf=buf;
 	self->size=size;
@@ -84,10 +84,10 @@ void CompressData(FILE *fh,uint8_t *buf,uint32_t size,
 int typeshift,int literalshift,int lengthshift1,int lengthshift2,int offsetshift1,int offsetshift2)
 {
 	RangeEncoder comp;
-	InitRangeEncoder(&comp,fh);
+	InitializeRangeEncoder(&comp,STDIOWriteFunction,fh);
 
 	DictionaryLookup dict;
-	InitDictionaryLookup(&dict,buf,size);
+	InitializeDictionaryLookup(&dict,buf,size);
 
 	int typeweight=0x800;
 

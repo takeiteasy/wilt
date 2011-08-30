@@ -11,7 +11,8 @@ static void Normalize(RadixRangeEncoder *self);
 static void ShiftOutput(RadixRangeEncoder *self);
 static void WriteWrappedDigit(RadixRangeEncoder *self,int output);
 
-void InitRadixRangeEncoder(RadixRangeEncoder *self,int radix,uint8_t *alphabet,FILE *fh)
+void InitializeRadixRangeEncoder(RadixRangeEncoder *self,int radix,uint8_t *alphabet,
+RadixRangeEncoderWriteFunction *writefunc,void *writecontext)
 {
 	int bottom;
 	if(radix==2) bottom=0x80000000;
@@ -44,7 +45,9 @@ void InitRadixRangeEncoder(RadixRangeEncoder *self,int radix,uint8_t *alphabet,F
 	self->nextdigit=-1;
 	self->overflow=false;
 
-	self->fh=fh;
+	self->writefunc=writefunc;
+	self->writecontext=writecontext;
+	self->writefailed=false;
 
 	if(alphabet) memcpy(self->alphabet,alphabet,radix);
 	else for(int i=0;i<radix;i++) self->alphabet[i]=i;
@@ -91,7 +94,8 @@ static void ShiftOutput(RadixRangeEncoder *self)
 
 static void WriteWrappedDigit(RadixRangeEncoder *self,int output)
 {
-	fputc(self->alphabet[output%self->radix],self->fh);
+	if(self->writefunc(self->alphabet[output%self->radix],self->writecontext)<0)
+	self->writefailed=true;
 }
 
 

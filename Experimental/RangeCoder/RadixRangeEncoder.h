@@ -3,11 +3,14 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdio.h>
 
 extern uint8_t URLSafeAlphabet[71];
 extern uint8_t Base64Alphabet[64];
 extern uint8_t HexAlphabet[16];
+
+typedef int RadixRangeEncoderWriteFunction(int b,void *writecontext);
+
+#define STDIORadixWriteFunction ((RadixRangeEncoderWriteFunction *)fputc)
 
 typedef struct RadixRangeEncoder
 {
@@ -17,14 +20,19 @@ typedef struct RadixRangeEncoder
 	int numextradigits,nextdigit;
 	bool overflow,firstdigit;
 
-	FILE *fh;
+	RadixRangeEncoderWriteFunction *writefunc;
+	void *writecontext;
+	bool writefailed;
 
 	uint8_t alphabet[256];
 } RadixRangeEncoder;
 
-void InitRadixRangeEncoder(RadixRangeEncoder *self,int radix,uint8_t *alphabet,FILE *fh);
+void InitializeRadixRangeEncoder(RadixRangeEncoder *self,int radix,uint8_t *alphabet,
+RadixRangeEncoderWriteFunction *writefunc,void *writecontext);
 void FinishRadixRangeEncoder(RadixRangeEncoder *self);
 void NormalizeRadixRangeEncoder(RadixRangeEncoder *self);
+
+static inline bool RadixRangeEncoderWritingFailed(RadixRangeEncoder *self) { return self->writefailed; }
 
 static inline int GetRadixRangeEncoderState(RadixRangeEncoder *self,uint32_t *range,uint32_t *low)
 {

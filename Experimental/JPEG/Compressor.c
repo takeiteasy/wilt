@@ -117,7 +117,7 @@ bool TestJPEGCompressor(JPEGCompressor *self,FILE *output)
 
 	memset(self->predicted,0,sizeof(self->predicted));
 
-	InitRangeEncoder(&self->encoder,output);
+	InitializeRangeEncoder(&self->encoder,STDIOWriteFunction,output);
 
 	// Initialize arithmetic encoder contexts.
 	InitializeContexts(&self->eobbins[0][0][0],sizeof(self->eobbins));
