@@ -29,6 +29,8 @@ void InitializeBitStreamReader(BitStreamReader *self,const void *bytes,size_t le
 
 int ReadBitString(BitStreamReader *self,unsigned int length)
 {
+	if(length==0) return 0;
+
 	FillBits(self,length);
 	if(self->numbits<length) return -1;
 

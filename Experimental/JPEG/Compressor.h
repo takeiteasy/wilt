@@ -3,6 +3,7 @@
 
 #include "JPEG.h"
 #include "Huffman.h"
+#include "Primitives.h"
 #include "../RangeCoder/RangeEncoder.h"
 
 #include <stdint.h>
@@ -25,15 +26,15 @@ typedef struct JPEGCompressor
 	int acmagnitudeshift,acremaindershift,acsignshift;
 	int dcmagnitudeshift,dcremaindershift,dcsignshift;
 
-	uint16_t eobbins[4][13][63];
-	uint16_t zerobins[4][62][3][6];
-	uint16_t pivotbins[4][63][5][7];
-	uint16_t acmagnitudebins[4][3][9][9][9];
-	uint16_t acremainderbins[4][3][7][13];
-	uint16_t acsignbins[4][27][3][2];
-	uint16_t dcmagnitudebins[4][13][10];
-	uint16_t dcremainderbins[4][13][14];
-	uint16_t dcsignbins[4][2][2][2];
+	int eobbins[4][13][64];
+	int zerobins[4][62][3][6];
+	int pivotbins[4][63][5][7];
+	int acmagnitudebins[4][3][9][9][13];
+	int acremainderbins[4][3][7][13];
+	int acsignbins[4][27][3][2];
+	int dcmagnitudebins[4][13][14];
+	int dcremainderbins[4][13][14];
+	int dcsignbins[4][2][2][2];
 } JPEGCompressor;
 
 JPEGCompressor *AllocJPEGCompressor(const void *bytes,size_t length);
