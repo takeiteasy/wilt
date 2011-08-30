@@ -10,7 +10,8 @@ glob:Experimental/WiltCompress
 glob:Experimental/WiltDecompress
 glob:Experimental/MarkovCompress
 glob:Experimental/RangeCoder/Test
-glob:Experimental/JPEG/SimpleCompressor
+glob:Experimental/JPEG/SimpleCompress
+glob:Experimental/JPEG/SimpleDecompress
 glob:Reference/WiltCompress
 glob:Reference/WiltCompress16
 glob:Reference/WiltDecompress

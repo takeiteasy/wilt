@@ -1,4 +1,6 @@
 #include "Decompressor.h"
+#include "HuffmanWriter.h"
+#include "Primitives.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -7,13 +9,12 @@
 // Constructor and destructor.
 //
 
-JPEGDecompressor *AllocJPEGDecompressor(/*JPEGReadFunction *readfunc,void *inputcontext*/)
+JPEGDecompressor *AllocJPEGDecompressor(RangeDecoderReadFunction *readfunc,void *readcontext)
 {
 	JPEGDecompressor *self=calloc(sizeof(JPEGDecompressor),1);
 	if(!self) return NULL;
 
-/*	self->readfunc=readfunc;
-	self->inputcontext=inputcontext;
+	InitializeRangeDecoder(&self->decoder,readfunc,readcontext);
 
 	self->metadatalength=0;
 	self->metadatabytes=NULL;
@@ -21,11 +22,19 @@ JPEGDecompressor *AllocJPEGDecompressor(/*JPEGReadFunction *readfunc,void *input
 	self->isfirstbundle=true;
 	self->reachedend=false;
 
-	self->slicesavailable=false;
+	self->eobshift=4;
+	self->zeroshift=4;
+	self->pivotshift=4;
+	self->acmagnitudeshift=4;
+	self->acremaindershift=4;
+	self->acsignshift=4;
+	self->dcmagnitudeshift=4;
+	self->dcremaindershift=4;
+	self->dcsignshift=4;
 
-	memset(self->blocks,0,sizeof(self->blocks));
+	memset(self->rows,0,sizeof(self->rows));
 
-	self->mcusavailable=false;*/
+	self->mcusavailable=false;
 
 	return self;
 }
@@ -34,34 +43,21 @@ void FreeJPEGDecompressor(JPEGDecompressor *self)
 {
 	if(!self) return;
 
-//	free(self->metadatabytes);
-//	for(int i=0;i<4;i++) free(self->blocks[i]);
+	free(self->metadatabytes);
+
+	for(int i=0;i<4;i++)
+	for(int j=0;j<3;j++)
+	free(self->rows[i][j]);
+
 	free(self);
 }
 
 
-/*
 
-//
-// Header and bundle reading.
-//
-
-// Little endian integer parsing functions.
-static inline uint16_t LittleEndianUInt16(uint8_t *ptr) { return ptr[0]|(ptr[1]<<8); }
-static inline uint32_t LittleEndianUInt32(uint8_t *ptr) { return ptr[0]|(ptr[1]<<8)|(ptr[2]<<16)|(ptr[3]<<24); }
-
-// Allocator functions for LZMA.
-static void *Alloc(void *p,size_t size) { return malloc(size); }
-static void Free(void *p,void *address) { return free(address); }
-static ISzAlloc lzmaallocator={Alloc,Free};
-
-// Helper functions for reading from the input stream.
-static int FullRead(JPEGDecompressor *self,uint8_t *buffer,size_t length);
-static int SkipBytes(JPEGDecompressor *self,size_t length);
 
 int ReadJPEGHeader(JPEGDecompressor *self)
 {
-	// Read 4-byte header.
+/*	// Read 4-byte header.
 	uint8_t header[4];
 	int error=FullRead(self,header,sizeof(header));
 	if(error) return error;
@@ -82,9 +78,15 @@ int ReadJPEGHeader(JPEGDecompressor *self)
 
 	// Parse slice value.
 	self->slicevalue=header[3]&0x1f;
-
+*/
 	return JPEGNoError;
 }
+
+
+
+// Bundle reading.
+
+static void InitializeContexts(int *contexts,size_t totalbytes);
 
 int ReadNextJPEGBundle(JPEGDecompressor *self)
 {
@@ -93,73 +95,21 @@ int ReadNextJPEGBundle(JPEGDecompressor *self)
 	self->metadatalength=0;
 	self->metadatabytes=NULL;
 
-	// Free and clear old slices.
-	for(int i=0;i<4;i++) free(self->blocks[i]);
-	memset(self->blocks,0,sizeof(self->blocks));
+	// Free and clear old rows.
+	for(int i=0;i<4;i++)
+	for(int j=0;j<3;j++)
+	free(self->rows[i][j]);
+	memset(self->rows,0,sizeof(self->rows));
 
 	// Read bundle header.
-	uint8_t header[4];
-	int error=FullRead(self,header,sizeof(header));
-	if(error) return error;
-
-	// Parse metadata sizes from header.
-	uint32_t uncompressedsize=LittleEndianUInt16(&header[0]);
-	uint32_t compressedsize=LittleEndianUInt16(&header[2]);
-
-	// If the sizes do not fit in 16 bits, both are set to 0xffff and
-	// an 8-byte 32-bit header is appended.
-	if(uncompressedsize==0xffff && compressedsize==0xffff)
-	{
-		uint8_t header[8];
-		int error=FullRead(self,header,sizeof(header));
-		if(error) return error;
-
-		uncompressedsize=LittleEndianUInt32(&header[0]);
-		compressedsize=LittleEndianUInt32(&header[4]);
-	}
+	uint32_t uncompressedsize=0;
 
 	// Allocate space for the uncompressed metadata.
 	self->metadatabytes=malloc(uncompressedsize);
 	if(!self->metadatabytes) return JPEGOutOfMemoryError;
 	self->metadatalength=uncompressedsize;
 
-	// NOTE: The spec does not mention this, but a compressed
-	// size of 0 means uncompressed data is stored.
-	if(compressedsize)
-	{
-		// Allocate temporary space for the compressed metadata, and read it.
-		uint8_t *compressedbytes=malloc(compressedsize);
-		if(!compressedbytes) return JPEGOutOfMemoryError;
-
-		error=FullRead(self,compressedbytes,compressedsize);
-		if(error) { free(compressedbytes); return error; }
-
-		// Calculate the dictionary size used for the LZMA coding.
-		int dictionarysize=(uncompressedsize+511)&~511;
-		if(dictionarysize<1024) dictionarysize=1024; // Silly - LZMA enforces a lower limit of 4096.
-		if(dictionarysize>512*1024) dictionarysize=512*1024;
-
-		// Create properties chunk for LZMA, using the dictionary size and default settings (lc=3, lp=0, pb=2).
-		uint8_t properties[5]={3+0*9+2*5*9,dictionarysize,dictionarysize>>8,dictionarysize>>16,dictionarysize>>24};
-
-		// Run LZMA decompressor.
-		SizeT destlen=uncompressedsize,srclen=compressedsize;
-		ELzmaStatus status;
-		SRes res=LzmaDecode(self->metadatabytes,&destlen,compressedbytes,&srclen,
-		properties,sizeof(properties),LZMA_FINISH_END,&status,&lzmaallocator);
-
-		// Free temporary buffer.
-		free(compressedbytes);
-
-		// Check if LZMA decoding succeeded.
-		if(res!=SZ_OK) return JPEGLZMAError;
-	}
-	else
-	{
-		// Read uncompressed metadata.
-		error=FullRead(self,self->metadatabytes,uncompressedsize);
-		if(error) return error;
-	}
+	// Uncompress metadata.
 
 	// Parse the JPEG structure. If this is the first bundle,
 	// we have to first find the start marker.
@@ -189,167 +139,28 @@ int ReadNextJPEGBundle(JPEGDecompressor *self)
 	}
 
 	// Initialize arithmetic decoder contexts.
-	InitializeJPEGContexts(&self->eobbins[0][0][0],sizeof(self->eobbins));
-	InitializeJPEGContexts(&self->zerobins[0][0][0][0],sizeof(self->zerobins));
-	InitializeJPEGContexts(&self->pivotbins[0][0][0][0],sizeof(self->pivotbins));
-	InitializeJPEGContexts(&self->acmagnitudebins[0][0][0][0][0],sizeof(self->acmagnitudebins));
-	InitializeJPEGContexts(&self->acremainderbins[0][0][0][0],sizeof(self->acremainderbins));
-	InitializeJPEGContexts(&self->acsignbins[0][0][0][0],sizeof(self->acsignbins));
-	InitializeJPEGContexts(&self->dcmagnitudebins[0][0][0],sizeof(self->dcmagnitudebins));
-	InitializeJPEGContexts(&self->dcremainderbins[0][0][0],sizeof(self->dcremainderbins));
-	InitializeJPEGContexts(&self->dcsignbins[0][0][0][0],sizeof(self->dcsignbins));
+	InitializeContexts(&self->eobbins[0][0][0],sizeof(self->eobbins));
+	InitializeContexts(&self->zerobins[0][0][0][0],sizeof(self->zerobins));
+	InitializeContexts(&self->pivotbins[0][0][0][0],sizeof(self->pivotbins));
+	InitializeContexts(&self->acmagnitudebins[0][0][0][0][0],sizeof(self->acmagnitudebins));
+	InitializeContexts(&self->acremainderbins[0][0][0][0],sizeof(self->acremainderbins));
+	InitializeContexts(&self->acsignbins[0][0][0][0],sizeof(self->acsignbins));
+	InitializeContexts(&self->dcmagnitudebins[0][0][0],sizeof(self->dcmagnitudebins));
+	InitializeContexts(&self->dcremainderbins[0][0][0],sizeof(self->dcremainderbins));
+	InitializeContexts(&self->dcsignbins[0][0][0][0],sizeof(self->dcsignbins));
 
-	// Calculate slize size, if any.
-	if(self->slicevalue)
-	{
-		int64_t pow2size=1LL<<(self->slicevalue+6);
-		int64_t div1=pow2size/self->jpeg.horizontalmcus;
-		if(div1<1) div1=1;
-		int64_t div2=(self->jpeg.verticalmcus+div1-1)/div1;
-		self->sliceheight=(self->jpeg.verticalmcus+div2-1)/div2;
-	}
-	else
-	{
-		self->sliceheight=self->jpeg.verticalmcus;
-	}
-
-	// Allocate memory for each component in a slice.
+	// Allocate memory for a few rows of data, for neighbour blocks.
 	for(int i=0;i<self->jpeg.numscancomponents;i++)
+	for(int j=0;j<3;j++)
 	{
-		self->blocks[i]=malloc(self->jpeg.horizontalmcus*self->sliceheight*
+		self->rows[i][j]=malloc(self->jpeg.horizontalmcus*
 		self->jpeg.scancomponents[i].component->horizontalfactor*
-		self->jpeg.scancomponents[i].component->verticalfactor*
 		sizeof(JPEGBlock));
 
-		if(!self->blocks[i]) return JPEGOutOfMemoryError;
+		if(!self->rows[i][j]) return JPEGOutOfMemoryError;
 	}
 
-	self->slicesavailable=true;
-	self->finishedrows=0;
-
-	self->mcucounter=0;
-	self->restartmarkerindex=0;
-	self->writerestartmarker=false;
-
-	memset(self->predicted,0,sizeof(self->predicted));
-
-	self->bitstring=0;
-	self->bitlength=0;
-	self->needsstuffing=false;
-
-	return JPEGNoError;
-}
-
-// Helper function that makes sure to read as much data as requested, even
-// if the read function returns short buffers, and reports an error if it
-// reaches EOF prematurely.
-static int FullRead(JPEGDecompressor *self,uint8_t *buffer,size_t length)
-{
-	size_t totalread=0;
-	while(totalread<length)
-	{
-		size_t actual=self->readfunc(self->inputcontext,&buffer[totalread],length-totalread);
-		if(actual==0) return JPEGEndOfStreamError;
-		totalread+=actual;
-	}
-
-	return JPEGNoError;
-}
-
-// Helper function to skip data by reading and discarding.
-static int SkipBytes(JPEGDecompressor *self,size_t length)
-{
-	uint8_t buffer[1024];
-
-	size_t totalread=0;
-	while(totalread<length)
-	{
-		size_t numbytes=length-totalread;
-		if(numbytes>sizeof(buffer)) numbytes=sizeof(buffer);
-		size_t actual=self->readfunc(self->inputcontext,buffer,numbytes);
-		if(actual==0) return JPEGEndOfStreamError;
-		totalread+=actual;
-	}
-
-	return JPEGNoError;
-}
-
-
-
-
-//
-// Block decoding.
-//
-
-// Decoder functions.
-static void DecodeBlock(JPEGDecompressor *self,int comp,
-JPEGBlock *current,const JPEGBlock *north,const JPEGBlock *west,
-const JPEGQuantizationTable *quantization);
-
-static int DecodeACComponent(JPEGDecompressor *self,int comp,unsigned int k,bool canbezero,
-const JPEGBlock *current,const JPEGBlock *north,const JPEGBlock *west,
-const JPEGQuantizationTable *quantization);
-
-static int DecodeACSign(JPEGDecompressor *self,int comp,unsigned int k,int absvalue,
-const JPEGBlock *current,const JPEGBlock *north,const JPEGBlock *west,
-const JPEGQuantizationTable *quantization);
-
-static int DecodeDCComponent(JPEGDecompressor *self,int comp,
-const JPEGBlock *current,const JPEGBlock *north,const JPEGBlock *west,
-const JPEGQuantizationTable *quantization);
-
-static unsigned int DecodeBinarization(JPEGArithmeticDecoder *decoder,
-JPEGContext *magnitudebins,JPEGContext *remainderbins,int maxbits,int cap);
-
-static const JPEGBlock ZeroBlock={0};
-
-int ReadNextJPEGSlice(JPEGDecompressor *self)
-{
-	self->currheight=self->sliceheight;
-	if(self->finishedrows+self->currheight>=self->jpeg.verticalmcus)
-	{
-		self->currheight=self->jpeg.verticalmcus-self->finishedrows;
-		self->slicesavailable=false;
-	}
-
-	for(int i=0;i<self->jpeg.numscancomponents;i++)
-	{
-		InitializeJPEGArithmeticDecoder(&self->decoder,self->readfunc,self->inputcontext);
-
-		int hblocks=self->jpeg.scancomponents[i].component->horizontalfactor;
-		int vblocks=self->jpeg.scancomponents[i].component->verticalfactor;
-		int blocksperrow=self->jpeg.horizontalmcus*hblocks;
-
-		const JPEGQuantizationTable *quantization=self->jpeg.scancomponents[i].component->quantizationtable;
-
-		// NOTE: Blocks are processed in cartesian order, not MCU order.
-		for(int y=0;y<self->currheight*vblocks;y++)
-		for(int x=0;x<self->jpeg.horizontalmcus*hblocks;x++)
-		{
-			JPEGBlock *currblock=&self->blocks[i][x+y*blocksperrow];
-
-			const JPEGBlock *northblock;
-			if(y!=0) northblock=&self->blocks[i][x+(y-1)*blocksperrow];
-			else if(self->finishedrows!=0) northblock=&self->blocks[i][x+(self->sliceheight*vblocks-1)*blocksperrow];
-			else northblock=NULL;
-
-			const JPEGBlock *westblock;
-			if(x!=0) westblock=&self->blocks[i][x-1+y*blocksperrow];
-			else westblock=NULL;
-
-			DecodeBlock(self,i,currblock,northblock,westblock,quantization);
-
-			if(JPEGArithmeticDecoderEncounteredEOF(&self->decoder)) return JPEGEndOfStreamError;
-		}
-
-		FlushJPEGArithmeticDecoder(&self->decoder);
-	}
-
-	self->finishedrows+=self->currheight;
-
-	// Initialize writer state.
 	self->mcusavailable=true;
-	self->currblock=self->blocks[0];
 
 	self->mcurow=0;
 	self->mcucol=0;
@@ -358,17 +169,188 @@ int ReadNextJPEGSlice(JPEGDecompressor *self)
 	self->mcuy=0;
 	self->mcucoeff=0;
 
-	// TODO: Error handling.
+	self->mcucounter=0;
+	self->restartmarkerindex=0;
+
+	memset(self->predicted,0,sizeof(self->predicted));
+
+	InitializeBitStreamWriter(&self->bitstream);
+
 	return JPEGNoError;
 }
 
-static void DecodeBlock(JPEGDecompressor *self,int comp,
+static void InitializeContexts(int *contexts,size_t totalbytes)
+{
+	for(int i=0;i<totalbytes/sizeof(*contexts);i++) contexts[i]=0x800;
+}
+
+
+
+//
+// Block decompressing and recompressing.
+//
+
+// Decompressor functions.
+static void DecompressBlock(JPEGDecompressor *self,int comp,
+JPEGBlock *current,const JPEGBlock *north,const JPEGBlock *west,
+const JPEGQuantizationTable *quantization);
+
+static int DecompressACComponent(JPEGDecompressor *self,int comp,unsigned int k,bool canbezero,
+const JPEGBlock *current,const JPEGBlock *north,const JPEGBlock *west,
+const JPEGQuantizationTable *quantization);
+
+static int DecompressACSign(JPEGDecompressor *self,int comp,unsigned int k,int absvalue,
+const JPEGBlock *current,const JPEGBlock *north,const JPEGBlock *west,
+const JPEGQuantizationTable *quantization);
+
+static int DecompressDCComponent(JPEGDecompressor *self,int comp,
+const JPEGBlock *current,const JPEGBlock *north,const JPEGBlock *west,
+const JPEGQuantizationTable *quantization);
+
+static const JPEGBlock ZeroBlock={0};
+
+
+
+size_t EncodeJPEGBlocksToBuffer(JPEGDecompressor *self,void *bytes,size_t length)
+{
+	uint8_t	*start=bytes;
+	uint8_t	*ptr=bytes;
+	uint8_t *end=ptr+length;
+
+	while(ptr<end)
+	{
+		if(ByteAvailableFromBitStream(&self->bitstream))
+		{
+			*ptr++=OutputByteFromBitStream(&self->bitstream);
+		}
+		else if(self->mcusavailable)
+		{
+			if(self->jpeg.restartinterval && self->mcucounter==self->jpeg.restartinterval)
+			{
+				// If it is time for a restart marker, output one.
+				FlushAndPushRestartMarker(&self->bitstream,
+				self->restartmarkerindex);
+
+				// Cycle the restart marker indexes, reset the MCU counter, and clear predictors.
+				self->restartmarkerindex=(self->restartmarkerindex+1)&7;
+				self->mcucounter=0;
+				memset(self->predicted,0,sizeof(self->predicted));
+			}
+			else if(self->mcucoeff==0)
+			{
+				// Output DC coefficient.
+				int diff=self->currblock->c[0]-self->predicted[self->mcucomp];
+
+				PushEncodedValue(&self->bitstream,
+				self->jpeg.scancomponents[self->mcucomp].dctable,diff,0);
+
+				self->predicted[self->mcucomp]=self->currblock->c[0];
+				self->mcucoeff=1;
+			}
+			else if(self->mcucoeff>self->currblock->eob && self->currblock->eob!=63)
+			{
+				// Output EOB marker.
+				PushHuffmanCode(&self->bitstream,
+				self->jpeg.scancomponents[self->mcucomp].actable,0x00);
+
+				self->mcucoeff=64;
+			}
+			else
+			{
+				// Output AC coefficient.
+
+				// Find the next non-zero coefficient.
+				int firstcoeff=self->mcucoeff;
+				int endrun=self->mcucoeff+15;
+				while(self->mcucoeff<63 && self->mcucoeff<endrun &&
+				self->currblock->c[self->mcucoeff]==0) self->mcucoeff++;
+
+				int zeroes=self->mcucoeff-firstcoeff;
+				int val=self->currblock->c[self->mcucoeff];
+
+				PushEncodedValue(&self->bitstream,
+				self->jpeg.scancomponents[self->mcucomp].actable,val,zeroes);
+
+				self->mcucoeff++;
+			}
+
+			// If we have output all coefficients, update position.
+			if(self->mcucoeff>=64)
+			{
+				int hblocks=self->jpeg.scancomponents[self->mcucomp].component->horizontalfactor;
+				int vblocks=self->jpeg.scancomponents[self->mcucomp].component->verticalfactor;
+
+				self->mcucoeff=0; self->mcux++;
+				if(self->mcux>=hblocks)
+				{
+					self->mcux=0; self->mcuy++;
+					if(self->mcuy>=vblocks)
+					{
+						self->mcuy=0; self->mcucomp++;
+						if(self->mcucomp>=self->jpeg.numscancomponents)
+						{
+							self->mcucomp=0; self->mcucol++;
+							if(self->mcucol>=self->jpeg.horizontalmcus)
+							{
+								self->mcucol=0; self->mcurow++;
+								if(self->mcurow>=self->jpeg.verticalmcus)
+								{
+									self->mcusavailable=false;
+									FlushBitStream(&self->bitstream);
+								}
+							}
+
+							// Count up towards the restart interval.
+							self->mcucounter++;
+						}
+					}
+				}
+
+				// Decompress the new block.
+				// TODO: Move this part around a bit to make more sense?
+				hblocks=self->jpeg.scancomponents[self->mcucomp].component->horizontalfactor;
+				vblocks=self->jpeg.scancomponents[self->mcucomp].component->verticalfactor;
+				JPEGQuantizationTable *quantization=self->jpeg.scancomponents[self->mcucomp].component->quantizationtable;
+
+				int x=self->mcucol*hblocks+self->mcux;
+				int y=self->mcurow*vblocks+self->mcuy;
+
+				self->currblock=&self->rows[self->mcucomp][y%3][x];
+
+				JPEGBlock *west;
+				if(x==0) west=NULL;
+				else west=&self->rows[self->mcucomp][y%3][x-1];
+
+				JPEGBlock *north;
+				if(y==0) north=NULL;
+				else north=&self->rows[self->mcucomp][(y-1)%3][x];
+
+				DecompressBlock(self,self->mcucomp,self->currblock,north,west,quantization);
+
+				// TODO: Better EOF handling.
+				if(RangeDecoderReachedEOF(&self->decoder))
+				{
+					self->mcusavailable=false;
+				}
+			}
+		}
+		else
+		{
+			// Nothing left to do. Return the partial length of output data.
+			return ptr-start;
+		}
+	}
+
+	return length;
+}
+
+
+
+static void DecompressBlock(JPEGDecompressor *self,int comp,
 JPEGBlock *current,const JPEGBlock *north,const JPEGBlock *west,
 const JPEGQuantizationTable *quantization)
 {
-	// Decode End Of Block value to find out how many AC components there are. (5.6.5)
-
-	// Calculate EOB context. (5.6.5.2)
+	// Calculate EOB context.
 	int average;
 	if(!north&&!west) average=0;
 	else if(!north) average=Sum(0,west);
@@ -377,14 +359,11 @@ const JPEGQuantizationTable *quantization)
 
 	int eobcontext=Min(Category(average),12);
 
-	// Decode EOB bits using binary tree. (5.6.5.1)
-	unsigned int bitstring=1;
-	for(int i=0;i<6;i++)
-	{
-		bitstring=(bitstring<<1)|NextBitFromJPEGArithmeticDecoder(&self->decoder,
-		&self->eobbins[comp][eobcontext][bitstring-1]);
-	}
-	unsigned int eob=bitstring&0x3f;
+	// Read EOB bits using binary tree.
+	unsigned int eob=ReadBitString(&self->decoder,6,
+	self->eobbins[comp][eobcontext],
+	self->eobshift);
+
 	current->eob=eob;
 
 	// Fill out the elided block entries with 0.
@@ -393,14 +372,14 @@ const JPEGQuantizationTable *quantization)
 	// Decode AC components in decreasing order, if any. (5.6.6)
 	for(unsigned int k=eob;k>=1;k--)
 	{
-		current->c[k]=DecodeACComponent(self,comp,k,k!=eob,current,north,west,quantization);
+		current->c[k]=DecompressACComponent(self,comp,k,k!=eob,current,north,west,quantization);
 	}
 
 	// Decode DC component.
-	current->c[0]=DecodeDCComponent(self,comp,current,north,west,quantization);
+	current->c[0]=DecompressDCComponent(self,comp,current,north,west,quantization);
 }
 
-static int DecodeACComponent(JPEGDecompressor *self,int comp,unsigned int k,bool canbezero,
+static int DecompressACComponent(JPEGDecompressor *self,int comp,unsigned int k,bool canbezero,
 const JPEGBlock *current,const JPEGBlock *north,const JPEGBlock *west,
 const JPEGQuantizationTable *quantization)
 {
@@ -415,12 +394,13 @@ const JPEGQuantizationTable *quantization)
 
 	if(canbezero)
 	{
-		// Decode zero/non-zero bit. (5.6.6.1)
+		// Decode zero/non-zero bit.
 		int zerocontext1=Min(Category(val1),2);
 		int zerocontext2=Min(Category(val2),5);
 
-		int nonzero=NextBitFromJPEGArithmeticDecoder(&self->decoder,
-		&self->zerobins[comp][k-1][zerocontext1][zerocontext2]);
+		int nonzero=ReadDynamicBit(&self->decoder,
+		&self->zerobins[comp][k-1][zerocontext1][zerocontext2],
+		self->zeroshift);
 
 		// If this component is zero, there is no need to decode further parameters.
 		if(!nonzero) return 0;
@@ -429,12 +409,13 @@ const JPEGQuantizationTable *quantization)
 	// This component is not zero. Proceed with decoding absolute value.
 	int absvalue;
 
-	// Decode pivot (abs>=2). (5.6.6.2)
+	// Decode pivot (abs>=2).
 	int pivotcontext1=Min(Category(val1),4);
 	int pivotcontext2=Min(Category(val2),6);
 
-	int pivot=NextBitFromJPEGArithmeticDecoder(&self->decoder,
-	&self->pivotbins[comp][k-1][pivotcontext1][pivotcontext2]);
+	int pivot=ReadDynamicBit(&self->decoder,
+	&self->pivotbins[comp][k-1][pivotcontext1][pivotcontext2],
+	self->pivotshift);
 
 	if(!pivot)
 	{
@@ -445,7 +426,7 @@ const JPEGQuantizationTable *quantization)
 	else
 	{
 		// The absolute of this component is >=2. Proceed with decoding
-		// the absolute value. (5.6.6.3)
+		// the absolute value.
 		int val3,n;
 		if(IsFirstRow(k)) { val3=Column(k)-1; n=0; }
 		else if(IsFirstColumn(k)) { val3=Row(k)-1; n=1; }
@@ -456,29 +437,28 @@ const JPEGQuantizationTable *quantization)
 		int remaindercontext=val3;
 
 		// Decode absolute value.
-		absvalue=DecodeBinarization(&self->decoder,
+		absvalue=ReadUniversalCode(&self->decoder,
 		self->acmagnitudebins[comp][n][magnitudecontext1][magnitudecontext2],
+		self->acmagnitudeshift,
 		self->acremainderbins[comp][n][remaindercontext],
-		14,9)+2;
+		self->acremaindershift)+2;
 	}
 
-	if(DecodeACSign(self,comp,k,absvalue,current,north,west,quantization)) return -absvalue;
+	if(DecompressACSign(self,comp,k,absvalue,current,north,west,quantization)) return -absvalue;
 	else return absvalue;
 }
 
-static int DecodeACSign(JPEGDecompressor *self,int comp,unsigned int k,int absvalue,
+static int DecompressACSign(JPEGDecompressor *self,int comp,unsigned int k,int absvalue,
 const JPEGBlock *current,const JPEGBlock *north,const JPEGBlock *west,
 const JPEGQuantizationTable *quantization)
 {
-	// Decode sign. (5.6.6.4)
-
-	// Calculate sign context, or decode with fixed probability. (5.6.6.4.1)
+	// Calculate sign context, or decode with fixed probability.
 	int predictedsign;
 	if(IsFirstRowOrColumn(k))
 	{
 		int bdr=BDR(k,current,north,west,quantization);
 
-		if(bdr==0) return NextBitFromJPEGArithmeticDecoder(&self->decoder,&self->fixedcontext);
+		if(bdr==0) return ReadBit(&self->decoder,0x800);
 
 		predictedsign=(bdr<0);
 	}
@@ -487,25 +467,25 @@ const JPEGQuantizationTable *quantization)
 		int sign1=Sign(north->c[k]);
 		int sign2=Sign(west->c[k]);
 
-		if(sign1+sign2==0) return NextBitFromJPEGArithmeticDecoder(&self->decoder,&self->fixedcontext);
+		if(sign1+sign2==0) return ReadBit(&self->decoder,0x800);
 
 		predictedsign=(sign1+sign2<0);
 	}
 	else if(IsSecondRow(k))
 	{
-		if(north->c[k]==0) return NextBitFromJPEGArithmeticDecoder(&self->decoder,&self->fixedcontext);
+		if(north->c[k]==0) return ReadBit(&self->decoder,0x800);
 
 		predictedsign=(north->c[k]<0);
 	}
 	else if(IsSecondColumn(k))
 	{
-		if(west->c[k]==0) return NextBitFromJPEGArithmeticDecoder(&self->decoder,&self->fixedcontext);
+		if(west->c[k]==0) return ReadBit(&self->decoder,0x800);
 
 		predictedsign=(west->c[k]<0);
 	}
 	else
 	{
-		return NextBitFromJPEGArithmeticDecoder(&self->decoder,&self->fixedcontext);
+		return ReadBit(&self->decoder,0x800);
 	}
 
 	static const int n_for_k[64]={
@@ -529,17 +509,16 @@ const JPEGQuantizationTable *quantization)
 
 	int signcontext1=Min(Category(absvalue)/2,2);
 
-	return NextBitFromJPEGArithmeticDecoder(&self->decoder,
-	&self->acsignbins[comp][n][signcontext1][predictedsign]);
+	return ReadDynamicBit(&self->decoder,
+	&self->acsignbins[comp][n][signcontext1][predictedsign],
+	self->acsignshift);
 }
 
-static int DecodeDCComponent(JPEGDecompressor *self,int comp,
+static int DecompressDCComponent(JPEGDecompressor *self,int comp,
 const JPEGBlock *current,const JPEGBlock *north,const JPEGBlock *west,
 const JPEGQuantizationTable *quantization)
 {
-	// Decode DC component. (5.6.7)
-
-	// DC prediction. (5.6.7.1)
+	// DC prediction.
 	int predicted;
 	if(!north&&!west)
 	{
@@ -568,7 +547,7 @@ const JPEGQuantizationTable *quantization)
 		int t1=west->c[0]*10000-11038*quantization->c[1]*(west->c[1]+current->c[1])/quantization->c[0];
 		int p1=((t1<0)?(t1-5000):(t1+5000))/10000;
 
-		// Prediction refinement. (5.6.7.2)
+		// Prediction refinement.
 		int d0=0,d1=0;
 		for(int i=1;i<8;i++)
 		{
@@ -590,20 +569,21 @@ const JPEGQuantizationTable *quantization)
 		}
 	}
 
-	// Decode DC residual. (5.6.7.3)
+	// Decode DC residual.
 
-	// Decode absolute value. (5.6.7.3.1)
+	// Decode absolute value.
 	int absvalue;
 	int sum=Sum(0,current);
 	int valuecontext=Min(Category(sum),12);
 
-	absvalue=DecodeBinarization(&self->decoder,
+	absvalue=ReadUniversalCode(&self->decoder,
 	self->dcmagnitudebins[comp][valuecontext],
+	self->dcmagnitudeshift,
 	self->dcremainderbins[comp][valuecontext],
-	15,10);
+	self->dcremaindershift);
 	if(absvalue==0) return predicted;
 
-	// Decode sign. (5.6.7.3.2)
+	// Decode sign.
 	// NOTE: Spec says north[0]<0 and west[0]<0.
 	if(!north) north=&ZeroBlock;
 	if(!west) west=&ZeroBlock;
@@ -611,211 +591,11 @@ const JPEGQuantizationTable *quantization)
 	int westsign=(west->c[0]<predicted);
 	int predictedsign=(predicted<0);
 
-	int sign=NextBitFromJPEGArithmeticDecoder(&self->decoder,
-	&self->dcsignbins[comp][northsign][westsign][predictedsign]);
+	int sign=ReadDynamicBit(&self->decoder,
+	&self->dcsignbins[comp][northsign][westsign][predictedsign],
+	self->dcsignshift);
 
 	if(sign) return predicted-absvalue;
 	else return predicted+absvalue;
 }
-
-
-
-//
-// Block encoding.
-//
-
-static void PushEncodedValue(JPEGDecompressor *self,JPEGHuffmanTable *table,
-int value,unsigned int highbits);
-static void PushHuffmanCode(JPEGDecompressor *self,JPEGHuffmanTable *table,unsigned int code);
-static void PushBitString(JPEGDecompressor *self,uint32_t bitstring,unsigned int length);
-
-size_t EncodeJPEGBlocksToBuffer(JPEGDecompressor *self,void *bytes,size_t length)
-{
-	uint8_t	*start=bytes;
-	uint8_t	*ptr=bytes;
-	uint8_t *end=ptr+length;
-
-	while(ptr<end)
-	{
-		if(self->needsstuffing)
-		{
-			// If we need to add a byte of stuffing, do so.
-			*ptr++=0x00;
-			self->needsstuffing=false;
-		}
-		else if(self->bitlength>=8)
-		{
-			// If there are enough buffered bits, output one byte.
-			uint8_t byte=self->bitstring>>56LL;
-			*ptr++=byte;
-			self->bitstring<<=8;
-			self->bitlength-=8;
-
-			if(byte==0xff) self->needsstuffing=true;
-		}
-		else if(self->writerestartmarker)
-		{
-			// Output the first half of a restart marker. This has to be done
-			// separately, to avoid stuffing.
-			*ptr++=0xff;
-
-			// Next, push the rest of the marker into the bitstream as usual, as it
-			// will not trigger bit stuffing.
-			PushBitString(self,0xd0+self->restartmarkerindex,8);
-
-			// Cycle the restart marker indexes, reset the MCU counter, and clear predictors.
-			self->restartmarkerindex=(self->restartmarkerindex+1)&7;
-			self->mcucounter=0;
-			memset(self->predicted,0,sizeof(self->predicted));
-
-			self->writerestartmarker=false;
-		}
-		else if(self->jpeg.restartinterval && self->mcucounter==self->jpeg.restartinterval &&
-		(self->mcusavailable || self->slicesavailable))
-		{
-			// If it is time for a restart marker, and if we have not reached the very
-			// end of the scan, start outputting one.
-
-			// First, pad with ones to a byte border if needed.
-			if(self->bitlength)
-			{
-				int n=8-self->bitlength;
-				PushBitString(self,(1<<n)-1,n);
-			}
-
-			// Then set a flag to start writing a restart marker. This has to be done
-			// separately, to avoid bit stuffing.
-			self->writerestartmarker=true;
-		}
-		else if(self->mcusavailable)
-		{
-			// If there are still MCUs left to process output either a DC or AC coefficient as appropriate.
-			if(self->mcucoeff==0)
-			{
-				// Output DC coefficient.
-				int diff=self->currblock->c[0]-self->predicted[self->mcucomp];
-
-				PushEncodedValue(self,self->jpeg.scancomponents[self->mcucomp].dctable,diff,0);
-
-				self->predicted[self->mcucomp]=self->currblock->c[0];
-				self->mcucoeff=1;
-			}
-			else if(self->mcucoeff>self->currblock->eob && self->currblock->eob!=63)
-			{
-				// Output EOB marker.
-				PushHuffmanCode(self,self->jpeg.scancomponents[self->mcucomp].actable,0x00);
-
-				self->mcucoeff=64;
-			}
-			else
-			{
-				// Output AC coefficient.
-
-				// Find the next non-zero coefficient.
-				int firstcoeff=self->mcucoeff;
-				int endrun=self->mcucoeff+15;
-				while(self->mcucoeff<63 && self->mcucoeff<endrun &&
-				self->currblock->c[self->mcucoeff]==0) self->mcucoeff++;
-
-				int zeroes=self->mcucoeff-firstcoeff;
-				int val=self->currblock->c[self->mcucoeff];
-
-				PushEncodedValue(self,self->jpeg.scancomponents[self->mcucomp].actable,val,zeroes);
-
-				self->mcucoeff++;
-			}
-
-			// If we have output all coefficients, update position.
-			if(self->mcucoeff>=64)
-			{
-				int hblocks=self->jpeg.scancomponents[self->mcucomp].component->horizontalfactor;
-				int vblocks=self->jpeg.scancomponents[self->mcucomp].component->verticalfactor;
-
-				self->mcucoeff=0; self->mcux++;
-				if(self->mcux>=hblocks)
-				{
-					self->mcux=0; self->mcuy++;
-					if(self->mcuy>=vblocks)
-					{
-						self->mcuy=0; self->mcucomp++;
-						if(self->mcucomp>=self->jpeg.numscancomponents)
-						{
-							self->mcucomp=0; self->mcucol++;
-							if(self->mcucol>=self->jpeg.horizontalmcus)
-							{
-								self->mcucol=0; self->mcurow++;
-								if(self->mcurow>=self->currheight)
-								{
-									self->mcusavailable=false;
-
-									if(!self->slicesavailable)
-									{
-										// If we reached the very end, pad with ones
-										// to a byte boundary to finish the stream.
-										int n=(-self->bitlength)&7;
-										PushBitString(self,(1<<n)-1,n);
-									}
-								}
-							}
-
-							// Count up towards the restart interval.
-							self->mcucounter++;
-						}
-					}
-				}
-
-				// Find the new block.
-				hblocks=self->jpeg.scancomponents[self->mcucomp].component->horizontalfactor;
-				vblocks=self->jpeg.scancomponents[self->mcucomp].component->verticalfactor;
-				int blocksperrow=self->jpeg.horizontalmcus*hblocks;
-
-				int blockx=self->mcucol*hblocks+self->mcux;
-				int blocky=self->mcurow*vblocks+self->mcuy;
-
-				self->currblock=&self->blocks[self->mcucomp][blockx+blocky*blocksperrow];
-			}
-		}
-		else
-		{
-			// Nothing left to do. Return the partial length of output data.
-			return ptr-start;
-		}
-	}
-	return length;
-}
-
-static void PushEncodedValue(JPEGDecompressor *self,JPEGHuffmanTable *table,
-int value,unsigned int highbits)
-{
-	int category,bitstring;
-	if(value>=0)
-	{
-		category=Category(value);
-		int mask=(1<<category)-1;
-		bitstring=value&mask;
-	}
-	else
-	{
-		category=Category(-value);
-		int mask=(1<<category)-1;
-		bitstring=(value&mask)-1;
-	}
-
-	PushHuffmanCode(self,table,category|(highbits<<4));
-	PushBitString(self,bitstring,category);
-}
-
-
-static void PushHuffmanCode(JPEGDecompressor *self,JPEGHuffmanTable *table,unsigned int code)
-{
-	PushBitString(self,table->codes[code].code,table->codes[code].length);
-}
-
-static void PushBitString(JPEGDecompressor *self,uint32_t bitstring,unsigned int length)
-{
-	self->bitstring|=(uint64_t)bitstring<<64-self->bitlength-length;
-	self->bitlength+=length;
-}
-
-*/
 

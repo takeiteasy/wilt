@@ -2,8 +2,7 @@
 #define ___JPEG_DECOMPRESSOR_H__
 
 #include "JPEG.h"
-#include "Huffman.h"
-#include "Primitives.h"
+#include "HuffmanReader.h"
 #include "../RangeCoder/RangeEncoder.h"
 
 #include <stdint.h>
@@ -41,7 +40,7 @@ typedef struct JPEGCompressor
 JPEGCompressor *AllocJPEGCompressor(const void *bytes,size_t length);
 void FreeJPEGCompressor(JPEGCompressor *self);
 
-bool TestJPEGCompressor(JPEGCompressor *self,FILE *output);
+bool RunJPEGCompressor(JPEGCompressor *self,FILE *output);
 
 #endif
 

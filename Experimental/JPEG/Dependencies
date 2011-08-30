@@ -1,4 +1,13 @@
-Compressor.o: Compressor.c Compressor.h JPEG.h Huffman.h \
- ../RangeCoder/RangeEncoder.h
-Huffman.o: Huffman.c Huffman.h
+Compressor.o: Compressor.c Compressor.h JPEG.h HuffmanReader.h \
+  ../RangeCoder/RangeEncoder.h Primitives.h
+Decompressor.o: Decompressor.c Decompressor.h JPEG.h \
+  ../RangeCoder/RangeDecoder.h HuffmanWriter.h Primitives.h
 JPEG.o: JPEG.c JPEG.h
+SimpleCompress.o: SimpleCompress.c Compressor.h JPEG.h HuffmanReader.h \
+  ../RangeCoder/RangeEncoder.h
+SimpleDecompress.o: SimpleDecompress.c Decompressor.h JPEG.h \
+  ../RangeCoder/RangeDecoder.h
+../RangeCoder/RangeDecoder.o: ../RangeCoder/RangeDecoder.c ../RangeCoder/RangeDecoder.h \
+  ../RangeCoder/DecodeImplementations.h
+../RangeCoder/RangeEncoder.o: ../RangeCoder/RangeEncoder.c ../RangeCoder/RangeEncoder.h \
+  ../RangeCoder/EncodeImplementations.h

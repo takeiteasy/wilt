@@ -1,4 +1,5 @@
 #include "Compressor.h"
+#include "Primitives.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -71,7 +72,7 @@ static const JPEGBlock ZeroBlock={0};
 
 
 
-bool TestJPEGCompressor(JPEGCompressor *self,FILE *output)
+bool RunJPEGCompressor(JPEGCompressor *self,FILE *output)
 {
 	// Parse the JPEG structure. If this is the first bundle,
 	// we have to first find the start marker.
@@ -137,7 +138,7 @@ bool TestJPEGCompressor(JPEGCompressor *self,FILE *output)
 	{
 		if(self->jpeg.restartinterval&&restartcounter==self->jpeg.restartinterval)
 		{
-			if(!FlushBitStreamAndSkipRestartMarker(&self->bitstream,restartindex)) return false;
+			if(!FlushAndSkipRestartMarker(&self->bitstream,restartindex)) return false;
 			restartindex=(restartindex+1)&7;
 			restartcounter=0;
 			memset(self->predicted,0,sizeof(self->predicted));
@@ -236,6 +237,7 @@ static int DecodeValue(int magnitude,int remainder)
 
 
 
+
 //
 // Block compression.
 //
@@ -260,7 +262,7 @@ const JPEGQuantizationTable *quantization)
 
 	// Write EOB bits using binary tree.
 	WriteBitString(&self->encoder,current->eob,6,
-	&self->eobbins[comp][eobcontext][0],
+	self->eobbins[comp][eobcontext],
 	self->eobshift);
 
 	// Compress AC components in decreasing order, if any.

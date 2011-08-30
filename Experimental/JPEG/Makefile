@@ -8,38 +8,36 @@ LD=gcc
 
 ALL_C_FILES=Compressor.c \
             Decompressor.c \
-            Huffman.c \
             JPEG.c \
-            SimpleCompressor.c \
+            SimpleCompress.c \
+            SimpleDecompress.c \
             ../RangeCoder/RangeDecoder.c \
             ../RangeCoder/RangeEncoder.c
 
-SIMPLECOMPRESSOR_C_FILES=Compressor.c \
-                         Huffman.c \
-                         JPEG.c \
-                         SimpleCompressor.c \
-                         ../RangeCoder/RangeEncoder.c
+SIMPLECOMPRESS_C_FILES=Compressor.c \
+                       JPEG.c \
+                       SimpleCompress.c \
+                       ../RangeCoder/RangeEncoder.c
 
-SIMPLEDECOMPRESSOR_C_FILES=Decompressor.c \
-                           Huffman.c \
-                           JPEG.c \
-                           SimpleDecompressor.c \
-                           ../RangeCoder/RangeDecoder.c
+SIMPLEDECOMPRESS_C_FILES=Decompressor.c \
+                         JPEG.c \
+                         SimpleDecompress.c \
+                         ../RangeCoder/RangeDecoder.c
 
 ALL_OBJS=$(ALL_C_FILES:.c=.o)
-SIMPLECOMPRESSOR_OBJS=$(SIMPLECOMPRESSOR_C_FILES:.c=.o)
-SIMPLEDECOMPRESSOR_OBJS=$(SIMPLEDECOMPRESSOR_C_FILES:.c=.o)
+SIMPLECOMPRESS_OBJS=$(SIMPLECOMPRESS_C_FILES:.c=.o)
+SIMPLEDECOMPRESS_OBJS=$(SIMPLEDECOMPRESS_C_FILES:.c=.o)
 
-all: SimpleCompressor SimpleDecompressor
+all: SimpleCompress SimpleDecompress
 
-SimpleCompressor: $(SIMPLECOMPRESSOR_OBJS)
+SimpleCompress: $(SIMPLECOMPRESS_OBJS)
 	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-SimpleDecompressor: $(SIMPLEDECOMPRESSOR_OBJS)
+SimpleDecompress: $(SIMPLEDECOMPRESS_OBJS)
 	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 clean:
-	rm -rf $(ALL_OBJS) SimpleCompressor SimpleDecompressor
+	rm -rf $(ALL_OBJS) SimpleCompress SimpleDecompress
 
 depend:
 	$(CC) -MM $(CFLAGS) $(ALL_C_FILES) >Dependencies.tmp
