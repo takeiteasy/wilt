@@ -2,6 +2,7 @@ glob:Magic2/*
 glob:Corpus/*
 glob:*.o
 glob:*.data
+glob:BetterCompressor/BetterCompressor
 glob:Experimental/Wilt16Compress
 glob:Experimental/Wilt16Decompress
 glob:Experimental/Wilt2Compress

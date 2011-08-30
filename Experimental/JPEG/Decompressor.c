@@ -11,6 +11,11 @@
 
 JPEGDecompressor *AllocJPEGDecompressor(RangeDecoderReadFunction *readfunc,void *readcontext)
 {
+	int b1=readfunc(readcontext); if(b1<0) return NULL;
+	int b2=readfunc(readcontext); if(b2<0) return NULL;
+	int b3=readfunc(readcontext); if(b3<0) return NULL;
+	int b4=readfunc(readcontext); if(b4<0) return NULL;
+
 	JPEGDecompressor *self=calloc(sizeof(JPEGDecompressor),1);
 	if(!self) return NULL;
 
@@ -22,15 +27,17 @@ JPEGDecompressor *AllocJPEGDecompressor(RangeDecoderReadFunction *readfunc,void 
 	self->isfirstbundle=true;
 	self->reachedend=false;
 
-	self->eobshift=4;
-	self->zeroshift=4;
-	self->pivotshift=4;
-	self->acmagnitudeshift=4;
-	self->acremaindershift=4;
-	self->acsignshift=4;
-	self->dcmagnitudeshift=4;
-	self->dcremaindershift=4;
-	self->dcsignshift=4;
+	uint32_t shifts=(b1<<24)|(b2<<16)|(b3<<8)|b4;
+
+	self->eobshift=(shifts&7)+1;
+	self->zeroshift=((shifts>>3)&7)+1;
+	self->pivotshift=((shifts>>6)&7)+1;
+	self->acmagnitudeshift=((shifts>>9)&7)+1;
+	self->acremaindershift=((shifts>>12)&7)+1;
+	self->acsignshift=((shifts>>15)&7)+1;
+	self->dcmagnitudeshift=((shifts>>18)&7)+1;
+	self->dcremaindershift=((shifts>>21)&7)+1;
+	self->dcsignshift=((shifts>>24)&7)+1;
 
 	memset(self->rows,0,sizeof(self->rows));
 
@@ -102,14 +109,21 @@ int ReadNextJPEGBundle(JPEGDecompressor *self)
 	memset(self->rows,0,sizeof(self->rows));
 
 	// Read bundle header.
-	uint32_t uncompressedsize=0;
+	uint32_t size=0;
+	for(int i=0;i<24;i++) size=(size<<1)|ReadBit(&self->decoder,0x800);
 
 	// Allocate space for the uncompressed metadata.
-	self->metadatabytes=malloc(uncompressedsize);
+	self->metadatabytes=malloc(size);
 	if(!self->metadatabytes) return JPEGOutOfMemoryError;
-	self->metadatalength=uncompressedsize;
+	self->metadatalength=size;
 
 	// Uncompress metadata.
+	for(int i=0;i<self->metadatalength;i++)
+	{
+		int byte=0;
+		for(int j=0;j<8;j++) byte=(byte<<1)|ReadBit(&self->decoder,0x800);
+		self->metadatabytes[i]=byte;
+	}
 
 	// Parse the JPEG structure. If this is the first bundle,
 	// we have to first find the start marker.
@@ -161,6 +175,7 @@ int ReadNextJPEGBundle(JPEGDecompressor *self)
 	}
 
 	self->mcusavailable=true;
+	self->neednewmcu=true;
 
 	self->mcurow=0;
 	self->mcucol=0;
@@ -225,6 +240,38 @@ size_t EncodeJPEGBlocksToBuffer(JPEGDecompressor *self,void *bytes,size_t length
 		}
 		else if(self->mcusavailable)
 		{
+			if(self->neednewmcu)
+			{
+				// Decompress the new block if needed.
+				self->neednewmcu=false;
+
+				int hblocks=self->jpeg.scancomponents[self->mcucomp].component->horizontalfactor;
+				int vblocks=self->jpeg.scancomponents[self->mcucomp].component->verticalfactor;
+				JPEGQuantizationTable *quantization=self->jpeg.scancomponents[self->mcucomp].component->quantizationtable;
+
+				int x=self->mcucol*hblocks+self->mcux;
+				int y=self->mcurow*vblocks+self->mcuy;
+
+				self->currblock=&self->rows[self->mcucomp][y%3][x];
+
+				JPEGBlock *west;
+				if(x==0) west=NULL;
+				else west=&self->rows[self->mcucomp][y%3][x-1];
+
+				JPEGBlock *north;
+				if(y==0) north=NULL;
+				else north=&self->rows[self->mcucomp][(y-1)%3][x];
+
+				DecompressBlock(self,self->mcucomp,self->currblock,north,west,quantization);
+
+				// TODO: Better EOF handling.
+				if(RangeDecoderReachedEOF(&self->decoder))
+				{
+					self->mcusavailable=false;
+					continue;
+				}
+			}
+
 			if(self->jpeg.restartinterval && self->mcucounter==self->jpeg.restartinterval)
 			{
 				// If it is time for a restart marker, output one.
@@ -306,32 +353,7 @@ size_t EncodeJPEGBlocksToBuffer(JPEGDecompressor *self,void *bytes,size_t length
 					}
 				}
 
-				// Decompress the new block.
-				// TODO: Move this part around a bit to make more sense?
-				hblocks=self->jpeg.scancomponents[self->mcucomp].component->horizontalfactor;
-				vblocks=self->jpeg.scancomponents[self->mcucomp].component->verticalfactor;
-				JPEGQuantizationTable *quantization=self->jpeg.scancomponents[self->mcucomp].component->quantizationtable;
-
-				int x=self->mcucol*hblocks+self->mcux;
-				int y=self->mcurow*vblocks+self->mcuy;
-
-				self->currblock=&self->rows[self->mcucomp][y%3][x];
-
-				JPEGBlock *west;
-				if(x==0) west=NULL;
-				else west=&self->rows[self->mcucomp][y%3][x-1];
-
-				JPEGBlock *north;
-				if(y==0) north=NULL;
-				else north=&self->rows[self->mcucomp][(y-1)%3][x];
-
-				DecompressBlock(self,self->mcucomp,self->currblock,north,west,quantization);
-
-				// TODO: Better EOF handling.
-				if(RangeDecoderReachedEOF(&self->decoder))
-				{
-					self->mcusavailable=false;
-				}
+				self->neednewmcu=true;
 			}
 		}
 		else

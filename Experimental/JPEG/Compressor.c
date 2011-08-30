@@ -40,6 +40,42 @@ void FreeJPEGCompressor(JPEGCompressor *self)
 	free(self);
 }
 
+void SetJPEGCompressorShifts(JPEGCompressor *self,
+int eobshift,int zeroshift,int pivotshift,
+int acmagnitudeshift,int acremaindershift,int acsignshift,
+int dcmagnitudeshift,int dcremaindershift,int dcsignshift)
+{
+	if(eobshift<1) eobshift=1;
+	if(zeroshift<1) zeroshift=1;
+	if(pivotshift<1) pivotshift=1;
+	if(acmagnitudeshift<1) acmagnitudeshift=1;
+	if(acremaindershift<1) acremaindershift=1;
+	if(acsignshift<1) acsignshift=1;
+	if(dcmagnitudeshift<1) dcmagnitudeshift=1;
+	if(dcremaindershift<1) dcremaindershift=1;
+	if(dcsignshift<1) dcsignshift=1;
+
+	if(eobshift>8) eobshift=8;
+	if(zeroshift>8) zeroshift=8;
+	if(pivotshift>8) pivotshift=8;
+	if(acmagnitudeshift>8) acmagnitudeshift=8;
+	if(acremaindershift>8) acremaindershift=8;
+	if(acsignshift>8) acsignshift=8;
+	if(dcmagnitudeshift>8) dcmagnitudeshift=8;
+	if(dcremaindershift>8) dcremaindershift=8;
+	if(dcsignshift>8) dcsignshift=8;
+
+	self->eobshift=eobshift;
+	self->zeroshift=zeroshift;
+	self->pivotshift=pivotshift;
+	self->acmagnitudeshift=acmagnitudeshift;
+	self->acremaindershift=acremaindershift;
+	self->acsignshift=acsignshift;
+	self->dcmagnitudeshift=dcmagnitudeshift;
+	self->dcremaindershift=dcremaindershift;
+	self->dcsignshift=dcsignshift;
+}
+
 
 
 // Block reading.
@@ -74,6 +110,24 @@ static const JPEGBlock ZeroBlock={0};
 
 bool RunJPEGCompressor(JPEGCompressor *self,FILE *output)
 {
+	uint32_t shifts=
+	(self->eobshift-1)|
+	(self->zeroshift-1<<3)|
+	(self->eobshift-1<<6)|
+	(self->acmagnitudeshift-1<<9)|
+	(self->acremaindershift-1<<12)|
+	(self->acsignshift-1<<15)|
+	(self->dcmagnitudeshift-1<<18)|
+	(self->dcremaindershift-1<<21)|
+	(self->dcsignshift-1<<24);
+
+	fputc((shifts>>24)&0xff,output);
+	fputc((shifts>>16)&0xff,output);
+	fputc((shifts>>8)&0xff,output);
+	fputc(shifts&0xff,output);
+
+	InitializeRangeEncoder(&self->encoder,STDIOWriteFunction,output);
+
 	// Parse the JPEG structure. If this is the first bundle,
 	// we have to first find the start marker.
 
@@ -83,10 +137,28 @@ bool RunJPEGCompressor(JPEGCompressor *self,FILE *output)
 
 	// TODO: Do sanity and conformance checks here.
 
-	InitializeBitStreamReader(&self->bitstream,self->start+self->jpeg.bytesparsed,
-	self->end-self->start-self->jpeg.bytesparsed);
+	size_t totallength=self->end-self->start;
+	size_t metadatalength=self->jpeg.bytesparsed;
+	if(metadatalength>=0x1000000) return false;
 
-	// Initialize Huffman lookup tables.
+	// Write metadata length.
+	for(int i=23;i>=0;i--)
+	{
+		WriteBit(&self->encoder,(metadatalength>>i)&1,0x800);
+	}
+
+	// Write metadata.
+	for(int i=0;i<metadatalength;i++)
+	for(int j=7;j>=0;j--)
+	{
+		WriteBit(&self->encoder,(self->start[i]>>j)&1,0x800);
+	}
+
+	// Initialize bitstream reader and Huffman lookup tables
+	// to read JPEG data.
+	InitializeBitStreamReader(&self->bitstream,self->start+self->jpeg.bytesparsed,
+	totallength-metadatalength);
+
 	for(int i=0;i<4;i++)
 	{
 		if(self->jpeg.huffmandefined[0][i])
@@ -114,11 +186,20 @@ bool RunJPEGCompressor(JPEGCompressor *self,FILE *output)
 		}
 	}
 
-	JPEGBlock rows[4][3][self->jpeg.horizontalmcus];
-
+	// Reset JPEG predictors.
 	memset(self->predicted,0,sizeof(self->predicted));
 
-	InitializeRangeEncoder(&self->encoder,STDIOWriteFunction,output);
+	// Allocate memory for a few rows of data, for neighbour blocks.
+	JPEGBlock *rows[4][3]={NULL};
+	for(int i=0;i<self->jpeg.numscancomponents;i++)
+	for(int j=0;j<3;j++)
+	{
+		rows[i][j]=malloc(self->jpeg.horizontalmcus*
+		self->jpeg.scancomponents[i].component->horizontalfactor*
+		sizeof(JPEGBlock));
+
+		if(!rows[i][j]) return false; //JPEGOutOfMemoryError;
+	}
 
 	// Initialize arithmetic encoder contexts.
 	InitializeContexts(&self->eobbins[0][0][0],sizeof(self->eobbins));
@@ -179,7 +260,31 @@ bool RunJPEGCompressor(JPEGCompressor *self,FILE *output)
 		}
 	}
 
+	// Kludge in a closing block, if possible.
+	if(self->bitstream.pos!=self->end-2) return false;
+	if(self->bitstream.pos[0]!=0xff) return false;
+	if(self->bitstream.pos[1]!=0xd9) return false;
+
+	metadatalength=2;
+
+	// Write metadata length.
+	for(int i=23;i>=0;i--)
+	{
+		WriteBit(&self->encoder,(metadatalength>>i)&1,0x800);
+	}
+
+	// Write metadata.
+	for(int i=0;i<metadatalength;i++)
+	for(int j=7;j>=0;j--)
+	{
+		WriteBit(&self->encoder,(self->bitstream.pos[i]>>j)&1,0x800);
+	}
+
 	FinishRangeEncoder(&self->encoder);
+
+	for(int i=0;i<4;i++)
+	for(int j=0;j<3;j++)
+	free(rows[i][j]);
 
 	return true;
 }

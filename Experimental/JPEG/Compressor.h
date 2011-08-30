@@ -40,6 +40,11 @@ typedef struct JPEGCompressor
 JPEGCompressor *AllocJPEGCompressor(const void *bytes,size_t length);
 void FreeJPEGCompressor(JPEGCompressor *self);
 
+void SetJPEGCompressorShifts(JPEGCompressor *self,
+int eobshift,int zeroshift,int pivotshift,
+int acmagnitudeshift,int acremaindershift,int acsignshift,
+int dcmagnitudeshift,int dcremaindershift,int dcsignshift);
+
 bool RunJPEGCompressor(JPEGCompressor *self,FILE *output);
 
 #endif

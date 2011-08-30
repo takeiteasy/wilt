@@ -46,7 +46,7 @@ typedef struct JPEGDecompressor
 	BitStreamWriter bitstream;
 
 	JPEGBlock *currblock;
-	bool mcusavailable;
+	bool mcusavailable,neednewmcu;
 	unsigned int mcurow,mcucol,mcucomp,mcux,mcuy,mcucoeff;
 	unsigned int mcucounter,restartmarkerindex;
 } JPEGDecompressor;

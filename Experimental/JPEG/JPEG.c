@@ -2,9 +2,9 @@
 
 #include <string.h>
 
-#include <stdio.h>
-#define DebugPrint(...) fprintf(stderr,__VA_ARGS__)
-//#define DebugPrint(...)
+//#include <stdio.h>
+//#define DebugPrint(...) fprintf(stderr,__VA_ARGS__)
+#define DebugPrint(...)
 
 static const uint8_t *FindNextMarker(const uint8_t *ptr,const uint8_t *end);
 static int ParseSize(const uint8_t *ptr,const uint8_t *end);
