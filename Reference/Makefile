@@ -1,8 +1,16 @@
-CFLAGS=-std=c99
+CFLAGS=-std=c99 -O3
 
-all: WiltCompress WiltDecompress WiltCompress16 WiltDecompress16
+EXECUTABLES=WiltCompress WiltNewCompress WiltDecompress WiltCompress16 WiltDecompress16
+
+all: $(EXECUTABLES)
+
+clean:
+	rm -rf $(EXECUTABLES)
 
 WiltCompress: WiltCompress.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+WiltNewCompress: WiltNewCompress.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 WiltDecompress: WiltDecompress.c

@@ -14,6 +14,7 @@ glob:Experimental/RangeCoder/Test
 glob:Experimental/JPEG/SimpleCompress
 glob:Experimental/JPEG/SimpleDecompress
 glob:Reference/WiltCompress
+glob:Reference/WiltNewCompress
 glob:Reference/WiltCompress16
 glob:Reference/WiltDecompress
 glob:Reference/WiltDecompress16
