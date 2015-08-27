@@ -6,6 +6,6 @@ Since it is very simple, it is also simple to adapt for specific uses. One varia
 
 For more information, refer to the wiki pages and the source code.
 
-* [WiltBenchmarks](/WAHa_06x36/wilt/wiki/WiltBenchmarks) Benchmarks for Wilt.
-* [WiltStreamFormat](/WAHa_06x36/wilt/wiki/WiltStreamFormat) Description of the data stream format for the Wilt compressor.
-* [WiltVariants](/WAHa_06x36/wilt/wiki/WiltVariants) Variants of the Wilt algorithm
+* [WiltBenchmarks](https://bitbucket.org/WAHa_06x36/wilt/wiki/WiltBenchmarks) Benchmarks for Wilt.
+* [WiltStreamFormat](https://bitbucket.org/WAHa_06x36/wilt/wiki/WiltStreamFormat) Description of the data stream format for the Wilt compressor.
+* [WiltVariants](https://bitbucket.org/WAHa_06x36/wilt/wiki/WiltVariants) Variants of the Wilt algorithm
