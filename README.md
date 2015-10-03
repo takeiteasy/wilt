@@ -9,3 +9,7 @@ For more information, refer to the wiki pages and the source code.
 * [WiltBenchmarks](https://bitbucket.org/WAHa_06x36/wilt/wiki/WiltBenchmarks) Benchmarks for Wilt.
 * [WiltStreamFormat](https://bitbucket.org/WAHa_06x36/wilt/wiki/WiltStreamFormat) Description of the data stream format for the Wilt compressor.
 * [WiltVariants](https://bitbucket.org/WAHa_06x36/wilt/wiki/WiltVariants) Variants of the Wilt algorithm
+
+## License ##
+
+This code is released into the public domain with no warranties. If that is not suitable, it is also available under the [CC0 license](http://creativecommons.org/publicdomain/zero/1.0/).
